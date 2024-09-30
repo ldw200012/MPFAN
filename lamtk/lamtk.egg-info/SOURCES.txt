@@ -1,0 +1,6 @@
+README.md
+setup.py
+lamtk.egg-info/PKG-INFO
+lamtk.egg-info/SOURCES.txt
+lamtk.egg-info/dependency_links.txt
+lamtk.egg-info/top_level.txt

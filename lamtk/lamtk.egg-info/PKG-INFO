@@ -1,0 +1,7 @@
+Metadata-Version: 2.1
+Name: lamtk
+Version: 0.1.0
+Summary: LiDAR aggregation and mapping toolkit
+Home-page: https://github.com/c7huang/lamtk
+Author: Chengjie Huang, Benjamin Therien
+Author-email: c.huang@uwaterloo.ca

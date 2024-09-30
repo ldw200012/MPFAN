@@ -1,0 +1,20 @@
+# ninja log v5
+4	15366	1715319761150543135	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/knn_query/knn_query_cuda.o	81b0ff8c29736f35
+0	15619	1715319761402551356	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/aggregation/aggregation_cuda.o	d750b02b55d39ac7
+1	16075	1715319761858566232	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/attention/attention_cuda.o	296d9fcdec82118d
+2	16462	1715319762246578891	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/ball_query/ball_query_cuda.o	a2393a3eba2306da
+2	17041	1715319762822597682	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/grouping/grouping_cuda.o	99a3950ff6ce152a
+3	17232	1715319763014603946	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/interpolation/interpolation_cuda.o	a8a940d2163c3a8e
+16462	30866	1715319776651048803	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda.o	c2c59da2ea7c9da5
+15620	31113	1715319776859055590	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/random_ball_query/random_ball_query_cuda.o	770ce22a0e395237
+17232	31740	1715319777523077251	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/subtraction/subtraction_cuda.o	7504c42df727d0d8
+1	35876	1715319781655212051	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/attention/attention_cuda_kernel.o	c87472f269230345
+3	36251	1715319782027224187	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/grouping/grouping_cuda_kernel.o	4e827f73fc94d4f
+4	36828	1715319782603242978	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/knn_query/knn_query_cuda_kernel.o	1c8bfdc44d5213fe
+1	37157	1715319782931253678	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/aggregation/aggregation_cuda_kernel.o	490b3c83f1c5da98
+3	37869	1715319783643276906	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/interpolation/interpolation_cuda_kernel.o	3fb6591cf08084c
+2	38400	1715319784175294261	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/ball_query/ball_query_cuda_kernel.o	858d332fc39ef77b
+17042	46109	1715319791883545720	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/sampling/sampling_cuda_kernel.o	5be7277dfcdb9b24
+16075	46260	1715319792035550679	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/random_ball_query/random_ball_query_cuda_kernel.o	d822ea9d77fc250c
+30866	52813	1715319798587764424	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/subtraction/subtraction_cuda_kernel.o	88cbf4a9efe676c7
+15409	53542	1715319799307787913	/home/bentherien/point-cloud-reid/libs/pointops/build/temp.linux-x86_64-cpython-38/src/pointops_api.o	2eecb3c0f153a6c1

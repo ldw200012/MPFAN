@@ -1,0 +1,104 @@
+#################################################################################################################################################
+
+            # if int(label_1[idx]) == class_to_extract:
+                
+            #     fa_T = h1[idx].T
+            #     fa_pca = pca.fit_transform(fa_T.cpu())
+
+            #     if os.path.exists(file_path):
+            #         loaded_stacked_feats = np.load(file_path)
+            #         print("A [ID: {}] - {} / {}".format(int(id_1[idx]), loaded_stacked_feats.shape, fa_pca.shape))
+            #         updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
+            #         np.save(file_path, updated_stacked_feats)
+            #     else:
+            #         print("New Instance Feature")
+            #         np.save(file_path, fa_pca)
+
+            # if int(label_2[idx]) == class_to_extract:
+
+            #     fb_T = h2[idx].T
+            #     fb_pca = pca.fit_transform(fb_T.cpu())
+
+            #     if os.path.exists(file_path):
+            #         loaded_stacked_feats = np.load(file_path)
+            #         print("B [ID: {}] - {} / {}".format(int(id_2[idx]), loaded_stacked_feats.shape, fb_pca.shape))
+            #         updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
+            #         np.save(file_path, updated_stacked_feats)
+            #     else:
+            #         print("New Instance Feature")
+            #         np.save(file_path, fb_pca)
+
+        # import os
+        # import numpy as np
+        # from sklearn.decomposition import PCA
+        # from scipy.spatial.distance import cosine
+        # for idx, match_pred in enumerate(match_preds):
+        #     fa1_T = fa1[idx].T
+        #     fa2_T = fa2[idx].T
+        #     fa3_T = fa3[idx].T
+        #     fb1_T = fb1[idx].T
+        #     fb2_T = fb2[idx].T
+        #     fb3_T = fb3[idx].T
+            
+        #     pca = PCA(n_components=10)
+
+        #     fa1_pca = pca.fit_transform(fa1_T.cpu())
+        #     fa2_pca = pca.fit_transform(fa2_T.cpu())
+        #     fa3_pca = pca.fit_transform(fa3_T.cpu())
+        #     fb1_pca = pca.fit_transform(fb1_T.cpu())
+        #     fb2_pca = pca.fit_transform(fb2_T.cpu())
+        #     fb3_pca = pca.fit_transform(fb3_T.cpu())
+
+        #     def calculate_similarity_matrix(feature_sets):
+        #         n = len(feature_sets)
+        #         similarity_matrix = np.zeros((n, n))
+                
+        #         for i in range(n):
+        #             for j in range(n):
+        #                 # if i == j:
+        #                 #     similarity_matrix[i, j] = 1.0  # Similarity with itself
+        #                 # else:
+        #                 similarity_matrix[i, j] = calculate_similarity(feature_sets[i], feature_sets[j])
+                
+        #         return similarity_matrix
+
+        #     def calculate_similarity(feature_set1, feature_set2):
+        #         similarities = []
+        #         for f1, f2 in zip(feature_set1, feature_set2):
+        #             similarities.append(abs(1 - cosine(f1, f2)))  # Cosine similarity
+        #         return np.mean(similarities)
+
+        #     feature_sets_a = [fa1_pca, fa2_pca, fa3_pca]
+        #     feature_sets_b = [fb1_pca, fb2_pca, fb3_pca]
+
+        #     similarity_matrix_a = calculate_similarity_matrix(feature_sets_a)
+        #     similarity_matrix_b = calculate_similarity_matrix(feature_sets_b)
+
+        #     # 0: car, 1: truck, 3: bus, 5: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
+        #     class_to_extract = 0
+        #     model_name = "PointNet"
+        #     file_path = "{}_feat_pca_{}.npy".format(class_to_extract)
+
+        #     if int(label_1[idx]) == class_to_extract:
+        #         # print("Class: {}, ID: {}, Mat: {}".format(int(label_1[idx]), int(id_1[idx]), similarity_matrix_a))
+        #         print("Label 1 matrix saved")
+        #         if os.path.exists(file_path):
+        #             loaded_stacked_matrices = np.load(file_path)
+        #             print(loaded_stacked_matrices.shape, similarity_matrix_a.shape)
+        #             updated_stacked_matrices = np.append(loaded_stacked_matrices, similarity_matrix_a, axis=0)
+        #             np.save(file_path, updated_stacked_matrices)
+        #         else:
+        #             print("New Matrix")
+        #             np.save(file_path, similarity_matrix_a)
+
+        #     if int(label_2[idx]) == class_to_extract:
+        #         # print("Class: {}, ID: {}, Mat: {}".format(int(label_2[idx]), int(id_2[idx]), similarity_matrix_b))
+        #         print("Label 2 matrix saved")
+        #         if os.path.exists(file_path):
+        #             loaded_stacked_matrices = np.load(file_path)
+        #             print(loaded_stacked_matrices.shape, similarity_matrix_b.shape)
+        #             updated_stacked_matrices = np.append(loaded_stacked_matrices, similarity_matrix_b, axis=0)
+        #             np.save(file_path, updated_stacked_matrices)
+        #         else:
+        #             print("New Matrix")
+        #             np.save(file_path, similarity_matrix_b)
