@@ -29,7 +29,9 @@ python setup.py develop --user
 ```
 
 ## 2. Try the model
-1. Run the code below to run the MPFAN model with a pre-trained weight
+1. Download the pre-trained weight and locate it in ./weights folder.
+<a href="https://drive.usercontent.google.com/download?id=1pGCarCGP6N-qt4nYr8WU7YqgYSuvEJUT">https://drive.usercontent.google.com/download?id=1pGCarCGP6N-qt4nYr8WU7YqgYSuvEJUT</a>
+3. Run the code below to run the MPFAN model with a pre-trained weight
 ```
-CUDA_VISIBLE_DEVICES=0 MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_nuscenes_pts/testing/testing_dualreid.py --checkpoint weights/Nested-BAN/epoch_500.pth
+CUDA_VISIBLE_DEVICES=0 MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_nuscenes_pts/testing/testing_dualreid.py --checkpoint weights/MPFAN_epoch_500.pth
 ```
