@@ -1,9 +1,7 @@
-<div style="border-bottom:1px solid #b2b2b2;padding-bottom:10px;width:auto;display:flex;flex-direction:column;align-items:center;margin:0px auto;">
-    <p style="margin: 0;font-size:30px;font-weight:700;">MPFAN: Multi-Perspective Feature Aggregation Network</font><br></p>
-    <p style="margin: 0;">MPFAN is a model aimed to discover the complementarity of the existing backbone networks (or feature extracting mechanisms).</p>
-</div>
+# MPFAN: Multi-Perspective Feature Aggregation Network
+MPFAN is a model aimed to discover the complementarity of the existing backbone networks (or feature extracting mechanisms).
 
-# 1. How to run
+## 1. How to run
 1. Clone the repository
 ```
 git clone https://github.com/ldw200012/MPFAN.git
@@ -30,7 +28,7 @@ cd MPFAN/point-cloud-reid
 python setup.py develop --user
 ```
 
-# 2. Try the model
+## 2. Try the model
 1. Run the code below to run the MPFAN model with a pre-trained weight
 ```
 CUDA_VISIBLE_DEVICES=0 MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_nuscenes_pts/testing/testing_dualreid.py --checkpoint weights/Nested-BAN/epoch_500.pth
