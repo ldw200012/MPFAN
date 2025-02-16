@@ -1,4 +1,4 @@
-# <p align="center">MPFAN/p>
+# <p align="center">MPFAN</p>
 
 <b>M</b>ulti-<b>P</b>erspective <b>F</b>eature <b>A</b>ggregation <b>N</b>etwork <b>(MPFAN)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
 
