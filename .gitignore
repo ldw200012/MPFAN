@@ -1,0 +1,11 @@
+__pycache__
+
+.neptune/
+build/
+Datasets/
+lamtk/
+*.egg-info/
+runs/
+
+# C extensions
+*.so
