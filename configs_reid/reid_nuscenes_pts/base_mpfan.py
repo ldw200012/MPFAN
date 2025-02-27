@@ -6,11 +6,17 @@ _base_ = [
 model = dict(
     type='ReIDNet',
 
+    # backbone=dict(type='ED_DualReID'),
+    backbone=dict(type='ED_DualReID_selective', fe_module='pointnet', ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID_selective', fe_module='pointnext', ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID_selective', fe_module='dgcnn', ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID_selective', fe_module='deepgcn', ED_conv_out=16),
+
     # backbone=dict(type='PTr-PN', fe_module='pointnet'),
     # backbone=dict(type='PTr-PX', fe_module='pointnext'),
     # backbone=dict(type='PTr-DG', fe_module='dgcnn'),
     # backbone=dict(type='PTr-Deep', fe_module='deepgcn'),
-    backbone=dict(type='PTr-DG-ED', fe_module='dgcnn', ED_nsample=10, ED_conv_out=16),
+    # backbone=dict(type='PTr-DG-ED', fe_module='dgcnn', ED_nsample=10, ED_conv_out=16),
     # backbone=dict(type='PTr-Deep-ED', fe_module='deepgcn', ED_nsample=10, ED_conv_out=16),
 
     losses_to_use=dict(
@@ -51,3 +57,4 @@ data = dict(
 )
 
 resume_from = None
+# resume_from = "/mpfan/runs/500e/PTr_GCI_Deep/epoch_500.pth"

@@ -46,4 +46,5 @@ data = dict(
     ),
 )
 
-resume_from = None
+# resume_from = None
+resume_from = "/mpfan/runs/500e/spotr/epoch_500.pth"

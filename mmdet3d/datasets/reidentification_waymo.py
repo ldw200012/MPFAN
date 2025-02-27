@@ -143,4 +143,4 @@ class ReIDDatasetWaymoFPValEven(ReIDDatasetWaymoFP):
                                       cls2=cls2))
 
         self.val_negatives = val_negatives
-        self.val_index = np.arange(0,2*len(val_positives))z
+        self.val_index = np.arange(0,2*len(val_positives))

@@ -27,7 +27,6 @@ from pytorch3d.loss import chamfer_distance
 
 import os
 import numpy as np
-# import umap
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cosine
 
@@ -478,10 +477,9 @@ class ReIDNet(BaseDetector):
         # w1: save features by model & class
         # w2: save features by model (whole class as one)
         # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
-        # umap_model = umap.UMAP(n_components=16)
-        pca = PCA(n_components=16)
+        pca = PCA(n_components=3)
         work = ["w1", "w2"]
-        model_name = "PTr_PN_GCI"
+        model_name = "PTr_Deep_GCI"
         class_to_extract = [0,1,3,4,6,8] # 0.1.3.6.8
         model_list = model_name.split('_')
 
@@ -490,12 +488,9 @@ class ReIDNet(BaseDetector):
                 pca_features = [pca.fit_transform(fa1[idx].T.cpu()),
                                 pca.fit_transform(fa2[idx].T.cpu()),
                                 pca.fit_transform(fa3[idx].T.cpu())]
-                # umap_features = [umap_model.fit_transform(fa1[idx].T.cpu()),
-                #                 umap_model.fit_transform(fa2[idx].T.cpu()),
-                #                 umap_model.fit_transform(fa3[idx].T.cpu())]
                 for i in range(len(model_list)):
                     if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
+                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
@@ -504,19 +499,9 @@ class ReIDNet(BaseDetector):
                         else:
                             print("New Instance Feature_{}".format(int(label_1[idx])))
                             np.save(file_path, pca_features[i])
-
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, umap_features[i].shape))
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_{}".format(int(label_1[idx])))
-                        #     np.save(file_path, umap_features[i])
                 
                     if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("Stacking to whole")
@@ -526,26 +511,13 @@ class ReIDNet(BaseDetector):
                             print("New Instance Feature_whole")
                             np.save(file_path, pca_features[i])
 
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("Stacking to whole")
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_whole")
-                        #     np.save(file_path, umap_features[i])
-
             if int(label_2[idx]) in class_to_extract:
                 pca_features = [pca.fit_transform(fb1[idx].T.cpu()),
                                 pca.fit_transform(fb2[idx].T.cpu()),
                                 pca.fit_transform(fb3[idx].T.cpu())]
-                # umap_features = [umap_model.fit_transform(fb1[idx].T.cpu()),
-                #                 umap_model.fit_transform(fb2[idx].T.cpu()),
-                #                 umap_model.fit_transform(fb3[idx].T.cpu())]
                 for i in range(len(model_list)):
                     if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
+                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
@@ -554,19 +526,9 @@ class ReIDNet(BaseDetector):
                         else:
                             print("New Instance Feature_{}".format(int(label_2[idx])))
                             np.save(file_path, pca_features[i])
-
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, umap_features[i].shape))
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_{}".format(int(label_2[idx])))
-                        #     np.save(file_path, umap_features[i])
                 
                     if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("Stacking to whole")
@@ -575,16 +537,6 @@ class ReIDNet(BaseDetector):
                         else:
                             print("New Instance Feature_whole")
                             np.save(file_path, pca_features[i])
-                        
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("Stacking to whole")
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_whole")
-                        #     np.save(file_path, umap_features[i])
         
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')

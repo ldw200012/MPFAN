@@ -7,7 +7,7 @@ model = dict(
     type='ReIDNet',
 
     backbone=dict(type='PointNet'),
-    # backbone=dict(type='ED_PointNet', ED_nsample=10, ED_conv_out=4),
+    # backbone=dict(type='ED_PointNet', ED_nsample=10, ED_conv_out=16),
 
     losses_to_use=dict(
         match=True,
@@ -21,7 +21,7 @@ model = dict(
 _bs = 128
 _min_points = 128
 _subsample_mode = "random" # random | fps | rand_crop
-_val_subsample_mode = "fps" # random | fps | rand_crop
+_val_subsample_mode = "random" # random | fps | rand_crop
 _subsample_sparse = 128
 
 data = dict(
@@ -47,3 +47,4 @@ data = dict(
 )
 
 resume_from = None
+# resume_from = "/mpfan/runs/500e/pointnet/epoch_500.pth"

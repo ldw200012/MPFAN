@@ -1,13 +1,13 @@
 import os 
 
-path_to_reid_ws = '/home/dongwooklee1201/morin/Research/Masters_Dissertation/mpfan/MPFAN'
-path_to_data = '/media/dongwooklee1201/Data_Storage_A1/Datasets'   #to make symbolic link to data work
+path_to_reid_ws = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Object_Re-Identification/MPFAN'
+path_to_data = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Datasets'
 memory = '724g'
 cpus = 10
 gpus = 'all'
-port = 14000
+port = 14001
 image = 'daldidan/mpfan:latest'
-name = 'mpfan-test'
+name = 'mpfan-test-restart'
 
 command = "docker run -v {}:{} -v {}:{} --memory {} --shm-size=8g --cpus={} --gpus {} -p {}:{} --name {} --rm -it {}".format(
     path_to_reid_ws,"/mpfan/",path_to_data,"/mpfan/Datasets/",memory,cpus,gpus,port,port,name,image
