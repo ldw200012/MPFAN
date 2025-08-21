@@ -3,7 +3,7 @@
 # interval to be 20. Please change the interval accordingly if you do not
 # use a default schedule.
 # optimizer
-# This schedule is mainly used by models on nuScenes dataset
+# This schedule is mainly used by models on GenericDataset dataset
 optimizer = dict(type='AdamW', lr=1e-5, weight_decay=0.01)
 # max_norm=10 is better for SECOND
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
@@ -21,4 +21,4 @@ momentum_config = dict(
 )
 
 # runtime settings
-runner = dict(type='EpochBasedRunner', max_epochs=1000)
+runner = dict(type='EpochBasedRunner', max_epochs=2000)

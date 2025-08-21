@@ -68,9 +68,11 @@ version = 'trainval'
 train_metadata_version = 'trainval-det-both'
 val_metadata_version = 'trainval-det-both'
 
+resume_from = None
+
 data = dict(
-    samples_per_gpu=64,
-    val_samples_per_gpu=128,
+    samples_per_gpu=128,
+    val_samples_per_gpu=256,
     workers_per_gpu=4,
     train=dict(type='ReIDDatasetNuscenesFP',
                cls_to_idx=cls_to_idx,
@@ -90,7 +92,7 @@ data = dict(
                                 tracking_classes=tracking_classes,
                                 metadata_path='Datasets/NuScenes-ReID/data/lstk/sparse-{}/metadata/metadata.pkl'.format(train_metadata_version),
                                 data_root='Datasets/NuScenes-ReID/data/lstk/sparse-{}'.format(train_metadata_version),
-                                min_points=2,
+                                min_points=128,
                                 load_scene=True,
                                 load_objects=True,
                                 load_feats=['xyz'],
@@ -115,7 +117,7 @@ data = dict(
                                 tracking_classes=tracking_classes,
                                 metadata_path='Datasets/NuScenes-ReID/data/lstk/sparse-{}/metadata/metadata.pkl'.format(train_metadata_version),
                                 data_root='Datasets/NuScenes-ReID/data/lstk/sparse-{}'.format(train_metadata_version),
-                                min_points=2,
+                                min_points=128,
                                 load_scene=True,
                                 load_objects=True,
                                 load_feats=['xyz'],

@@ -18,7 +18,7 @@ import torch.distributed as dist
 import os.path as osp
 
 from .selfattention import AttentionLayer
-from mmdet3d.models import pointnet2_utils as pu2
+from mmdet3d.models.layers import pointnet2_utils as pu2
 
 
 def extract_result_dict(results, key):

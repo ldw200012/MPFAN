@@ -5,12 +5,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .pointnet2_utils import PointNetSetAbstractionEdgeSA, PointNetFeaturePropagationSA, knn_point
+from mmdet3d.models.layers.pointnet2_utils import PointNetSetAbstractionEdgeSA, PointNetFeaturePropagationSA, knn_point
 
-class Pointnet_Backbone(nn.Module):
+class PointTransformerBackbone(nn.Module):
 
     def __init__(self, input_channels=3, use_xyz=True, conv_out=32, mul=1, radius=[0.3,0.5,0.7], nsample=[32,48,48]):
-        super(Pointnet_Backbone, self).__init__()
+        super(PointTransformerBackbone, self).__init__()
         print("\033[91mPointTransformer Created\033[0m")
 
         k = ()
@@ -86,10 +86,10 @@ class Pointnet_Backbone(nn.Module):
 
         return out1, out2  # [B, N, 3], [B, conv_out=32, N]
     
-class ED_Pointnet_Backbone(nn.Module):
+class ED_PointTransformerBackbone(nn.Module):
 
     def __init__(self, input_channels=3, use_xyz=True, conv_out=32, mul=1, radius=[0.3,0.5,0.7], nsample=[32,48,48], ED_nsample=10, ED_conv_out=8):
-        super(ED_Pointnet_Backbone, self).__init__()
+        super(ED_PointTransformerBackbone, self).__init__()
         print("\033[91mEDPointTransformer Created\033[0m")
 
         k = ()

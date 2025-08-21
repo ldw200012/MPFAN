@@ -45,6 +45,9 @@ cls_to_idx_fp = {
 
 train_metadata_version = 'waymo-det-both-train'
 val_metadata_version = 'waymo-det-both-val'
+
+resume_from = None
+
 data = dict(
     samples_per_gpu=64,
     val_samples_per_gpu=128,
@@ -65,7 +68,7 @@ data = dict(
                sparse_loader=dict(type='ObjectLoaderSparseWaymo',
                                 metadata_path='Datasets/Waymo-ReID/data/lstk/updated_sparse-{}/metadata'.format(train_metadata_version),
                                 data_root='Datasets/Waymo-ReID/data/lstk/updated_sparse-{}'.format(train_metadata_version),
-                                min_points=2,
+                                min_points=128,
                                 tracking_classes=tracking_classes,
                                 load_scene=True,
                                 load_objects=True,
@@ -89,7 +92,7 @@ data = dict(
                sparse_loader=dict(type='ObjectLoaderSparseWaymo',
                                 metadata_path='Datasets/Waymo-ReID/data/lstk/sparse-{}/metadata'.format(val_metadata_version),
                                 data_root='Datasets/Waymo-ReID/data/lstk/sparse-{}'.format(val_metadata_version),
-                                min_points=2,
+                                min_points=128,
                                 tracking_classes=tracking_classes,
                                 use_metdata_fix=True,
                                 load_scene=True,

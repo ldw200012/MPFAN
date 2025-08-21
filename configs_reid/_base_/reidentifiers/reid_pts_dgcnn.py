@@ -11,7 +11,7 @@ downsample_dim = 64
 downsample_input = 1024
 
 model = dict(
-    losses_to_use=dict(kl=False,match=False,cls=False,shape=False,fp=False,triplet=False),
+    losses_to_use=dict(kl=False,match=True,cls=False,shape=False,fp=False,triplet=False),
     alpha=dict(kl=0,match=1,cls=1,shape=1,fp=1,vis=0,triplet=1,),
 
     triplet_margin=10,
@@ -44,8 +44,8 @@ model = dict(
     downsample=[dict(type='LinearRes', n_in=downsample_input, n_out=512, norm='GN',ng=64),
                 dict(type='LinearRes', n_in=512, n_out=128, norm='GN',ng=16),
                 dict(type='Linear', in_features=128, out_features=downsample_dim)],
-    cross_stage1=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
-    cross_stage2=dict(type='corss_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage1=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
+    cross_stage2=dict(type='cross_attention',d_model=output_feat_size,nhead=2,attention='linear'),
     local_stage1=dict(),
     local_stage2=dict(),
 )

@@ -126,7 +126,8 @@ class ReIDDatasetBase(object):
                                                                             
             results_to_save = make_tup_str(results_to_save)
             json.dump(results_to_save,open('/tmp/results_per_visibility.json','w'))
-            neptune['results_per_visibility'].upload('/tmp/results_per_visibility.json')
+            if neptune is not None:
+                neptune['results_per_visibility'].upload('/tmp/results_per_visibility.json')
 
             to_delete += ['val_match_preds','match_classes','num_points','is_fp',]
         else:
@@ -181,7 +182,8 @@ class ReIDDatasetBase(object):
             print(k,round(v,6))
 
         json.dump(results,open('/tmp/overall_results.json','w'))
-        neptune['overall_results'].upload('/tmp/overall_results.json')
+        if neptune is not None:
+            neptune['overall_results'].upload('/tmp/overall_results.json')
 
         return results
     

@@ -9,6 +9,7 @@ from .shuffle_dataset_hook import ShuffleDatasetHook
 from .debug_printing_hook import DebugPrintingHook
 from .save_model_to_neptune_hook import SaveModelToNeptuneHook
 from .set_epoch_info_hook import SetEpochInfoHookTracking
+from .save_model_to_tensorboard_hook import SaveModelToTensorboardHook, LogConfigToTensorboardHook
 
 from .eval_hook import DistEvalHook
 
@@ -16,4 +17,4 @@ from .eval_hook import DistEvalHook
 __all__ = ['MMDetWandbHook','TrackingGradHook','CustomEval','UpdateParamMonitor',
            'UpdateGradMonitor','CustomOptimHook','UploadConfig',
            'ShuffleDatasetHook', 'DebugPrintingHook','SaveModelToNeptuneHook',
-           'SetEpochInfoHookTracking', 'DistEvalHook']
+           'SetEpochInfoHookTracking', 'DistEvalHook', 'SaveModelToTensorboardHook', 'LogConfigToTensorboardHook']

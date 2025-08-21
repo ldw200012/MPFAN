@@ -142,6 +142,9 @@ class DistEvalHook(BaseDistEvalHook):
             runner (:obj:`mmcv.Runner`): The underlined training runner.
             results (list): Output results.
         """
+        neptune = None
+        neptune_hook = None
+        
         for hook in runner._hooks:
             # if issubclass(type(hook), EvalHook):
             #     dataloader = hook.dataloader
@@ -162,7 +165,7 @@ class DistEvalHook(BaseDistEvalHook):
             runner.log_buffer.output[name] = val
         runner.log_buffer.ready = True
 
-        if runner._epoch == 0:
+        if runner._epoch == 0 and neptune_hook is not None:
             neptune_hook.log(runner)
 
         if self.save_best is not None:

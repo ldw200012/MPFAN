@@ -9,21 +9,21 @@ from transformers import (AutoImageProcessor,
                           DeiTForImageClassificationWithTeacher)
 import torch.nn.functional as F
 
-from .lanegcn_nets import PostRes,LinearRes
-from .pointattention import PointCloudAttention
+from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
+from mmdet3d.models.layers.pointattention import PointCloudAttention
 
 
-from .pointnet import PointNet, ED_PointNet
-from .pointnext import PointNeXt, ED_PointNeXt
-from .dgcnn_orig import DGCNN, ED_DGCNN
-from .deepgcn import DeepGCN, ED_DeepGCN
-from .backbone_net import Pointnet_Backbone, ED_Pointnet_Backbone
-from .spotr import SPoTr, ED_SPoTr
-from .dualreidnet import DualReID, ED_DualReID, ED_DualReID_selective
+from ..backbone.pointnet import PointNet, ED_PointNet
+from ..backbone.pointnext import PointNeXt, ED_PointNeXt
+from ..backbone.dgcnn_orig import DGCNN, ED_DGCNN
+from ..backbone.deepgcn import DeepGCN, ED_DeepGCN
+from ..backbone.backbone_net import PointTransformerBackbone, ED_PointTransformerBackbone
+from ..backbone.spotr import SPoTr, ED_SPoTr
+from ..backbone.dualreidnet import DualReID, ED_DualReID, ED_DualReID_selective
 
 from mmdet.models import BaseDetector
 import torch.distributed as dist
-from pytorch3d.loss import chamfer_distance
+# from pytorch3d.loss import chamfer_distance
 
 import os
 import numpy as np
@@ -34,69 +34,9 @@ import torch
 import copy
 import time 
 
-from .attention import corss_attention, local_self_attention, cross_lin_attn
+from mmdet3d.models.layers.attention import cross_attention, local_self_attention, cross_lin_attn
 
-module_obj = {
-    'Linear':nn.Linear,
-    'ReLU':nn.ReLU,
-    'LSTM':nn.LSTM,
-    'GroupNorm':nn.GroupNorm,
-    'Embedding':nn.Embedding,
-    'LayerNorm':nn.LayerNorm,
-    'PostRes':PostRes,
-    'LinearRes':LinearRes,
-    'Pointnet_Backbone':Pointnet_Backbone,
-    'corss_attention':corss_attention,
-    'local_self_attention':local_self_attention,
-    'Conv1d':nn.Conv1d,
-    'Conv2d':nn.Conv2d,
-    'BatchNorm1d':nn.BatchNorm1d,
-    'Sigmoid':nn.Sigmoid,
-    'cross_lin_attn':cross_lin_attn,
-    'PointCloudAttention':PointCloudAttention,
-
-    'PointNet':PointNet,
-    'ED_PointNet':ED_PointNet,
-    'PointNeXt':PointNeXt,
-    'ED_PointNeXt':ED_PointNeXt,
-    'DGCNN':DGCNN,
-    'ED_DGCNN':ED_DGCNN,
-    'DeepGCN':DeepGCN,
-    'ED_DeepGCN':ED_DeepGCN,
-    'ED_Pointnet_Backbone':ED_Pointnet_Backbone,
-    'SPoTr':SPoTr,
-    'ED_SPoTr':ED_SPoTr,
-    'DualReID':DualReID,
-    'ED_DualReID':ED_DualReID,
-    'ED_DualReID_selective':ED_DualReID_selective
-}
-
-def build_module(cfg):
-    if cfg == None or cfg == {}:
-        return None
-
-    if isinstance(cfg, list):
-        return build_sequential(cfg)
-
-    cls_ = module_obj[cfg['type']]
-    del cfg['type']
-    return cls_(**cfg)
-
-def build_sequential(module_list):
-    if module_list == None or module_list == {}:
-        return None
-        
-    modules = []
-    for cfg in module_list:
-        modules.append(build_module(cfg))
-    return nn.Sequential(*modules)
-
-def build_decisions(decisions):
-    if decisions == None or decisions == {}:
-        return None
-
-    emb = decisions['embedding']
-    return nn.ModuleDict({k:build_module(copy.deepcopy(emb)) for k in decisions if k != 'embedding'})
+from ..layers.builder import build_module, build_sequential, build_decisions
 
 def get_accuracy(y_true, y_prob):
     assert y_true.ndim == 1 and y_true.size() == y_prob.size()
@@ -235,34 +175,34 @@ class ReIDNet(BaseDetector):
         assert sparse_1.shape == sparse_2.shape
         b, num_points,_ = sparse_1.shape
 
-        # if self.use_dgcnn:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
-        #     h = h.permute(0,2,1)
-        #     h = h.reshape(-1,h.shape[-1])
-        #     h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
-            
-        #     return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
-        # else:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
-
-        #     return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
-
         if self.use_dgcnn:
-            xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
+            xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
             h = h.permute(0,2,1)
             h = h.reshape(-1,h.shape[-1])
             h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
-
-            print("\nUsing DGCNN")
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
+            
+            return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
         else:
-            xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
+            xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
 
-            print("\nNot using DGCNN")
-            print("F1/F2/F3 Shapes: ", f1.shape, f2.shape, f3.shape)
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
+            return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
+
+        # if self.use_dgcnn:
+        #     xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
+        #     h = h.permute(0,2,1)
+        #     h = h.reshape(-1,h.shape[-1])
+        #     h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
+
+        #     print("\nUsing DGCNN")
+        #     # fa1, fa2, fa3, fb1, fb2, fb3
+        #     return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
+        # else:
+        #     xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
+
+        #     print("\nNot using DGCNN")
+        #     print("F1/F2/F3 Shapes: ", f1.shape, f2.shape, f3.shape)
+        #     # fa1, fa2, fa3, fb1, fb2, fb3
+        #     return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
 
     def get_match_supervision(self,h1,h2,xyz1,xyz2,id_1,id_2):
         return h1, h2, xyz1, xyz2, ( id_1 == id_2 ).float()
@@ -290,7 +230,7 @@ class ReIDNet(BaseDetector):
             fp_preds = self.fp_head(input_).squeeze(1)
             target = ( target > 9 ).float()
             fp_loss = self.bce(fp_preds, target)
-            fp_loss = fp_loss * self.alpha['fp']
+            fp_loss = self.alpha['fp'] * fp_loss
 
             if self.compute_summary and log_vars != None:
                 log_vars[prefix+'fp_loss'] = fp_loss.item()
@@ -310,7 +250,7 @@ class ReIDNet(BaseDetector):
             match_preds = self.match_head(match_in).squeeze(1)
             match_loss = self.bce(match_preds,match)
 
-            match_loss = match_loss * self.alpha['match']
+            match_loss = self.alpha['match'] * match_loss
 
             if self.compute_summary and log_vars != None:
                 log_vars[prefix+'match_loss'] = match_loss.item()
@@ -344,7 +284,7 @@ class ReIDNet(BaseDetector):
             kl_loss[where_no_match] = kl_loss[where_no_match] * -1
             kl_loss = kl_loss[match==0].mean() + kl_loss[match==1].mean()
 
-            kl_loss = kl_loss * self.alpha['kl']
+            kl_loss = self.alpha['kl'] * kl_loss
 
             if self.compute_summary and log_vars != None:
                 log_vars[prefix+'kl_loss'] = kl_loss.item()
@@ -372,7 +312,6 @@ class ReIDNet(BaseDetector):
 
 
                 m,idx = matches[i],match_idx[i]
-
                 sample_pool = torch.where(id_ != m)[0]
                 neg_idx_to_use = torch.multinomial(torch.ones(sample_pool.size(0)), self.triplet_sample_num, replacement=(len(sample_pool) < self.triplet_sample_num)).to(device)
                 neg_idx_to_use = sample_pool[neg_idx_to_use]
@@ -393,7 +332,7 @@ class ReIDNet(BaseDetector):
             triplet_loss = self.triplet_loss(anchor=a,
                                              positive=p,
                                              negative=n)
-            triplet_loss = triplet_loss * self.alpha['triplet']
+            triplet_loss = self.alpha['triplet'] * triplet_loss
 
 
             if self.compute_summary and log_vars != None:
@@ -455,8 +394,8 @@ class ReIDNet(BaseDetector):
         fp_filter = torch.where(torch.cat([id_1,id_2],dim=0) != -1)[0]
 
         # Siamese Forward
-        # xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1,sparse_2)
-        xyz1, xyz2, h1, h2, fa1, fb1, fa2, fb2, fa3, fb3 = self.siamese_forward(sparse_1,sparse_2)
+        xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1,sparse_2)
+        # xyz1, xyz2, h1, h2, fa1, fb1, fa2, fb2, fa3, fb3 = self.siamese_forward(sparse_1,sparse_2)
         h_cat = torch.cat([h1,h2],dim=0)
 
         # CLS Forward
@@ -469,74 +408,74 @@ class ReIDNet(BaseDetector):
         h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
         match_preds, match_loss, (o1,o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
 
-        print("FA1/FA2/FA3 Shapes: ", fa1.shape, ", ", fa2.shape, ", ", fa3.shape)
-        print("FB1/FB2/FB3 Shapes: ", fb1.shape, ", ", fb2.shape, ", ", fb3.shape)
-        # FA1/FA2/FA3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
-        # FB1/FB2/FB3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
+        # print("FA1/FA2/FA3 Shapes: ", fa1.shape, ", ", fa2.shape, ", ", fa3.shape)
+        # print("FB1/FB2/FB3 Shapes: ", fb1.shape, ", ", fb2.shape, ", ", fb3.shape)
+        # # FA1/FA2/FA3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
+        # # FB1/FB2/FB3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
         
-        # w1: save features by model & class
-        # w2: save features by model (whole class as one)
-        # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
-        pca = PCA(n_components=3)
-        work = ["w1", "w2"]
-        model_name = "PTr_Deep_GCI"
-        class_to_extract = [0,1,3,4,6,8] # 0.1.3.6.8
-        model_list = model_name.split('_')
+        # # w1: save features by model & class
+        # # w2: save features by model (whole class as one)
+        # # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
+        # pca = PCA(n_components=3)
+        # work = ["w1", "w2"]
+        # model_name = "PTr_Deep_GCI"
+        # class_to_extract = [0,1,3,4,6,8] # 0.1.3.6.8
+        # model_list = model_name.split('_')
 
-        for idx, match_pred in enumerate(match_preds):
-            if int(label_1[idx]) in class_to_extract:
-                pca_features = [pca.fit_transform(fa1[idx].T.cpu()),
-                                pca.fit_transform(fa2[idx].T.cpu()),
-                                pca.fit_transform(fa3[idx].T.cpu())]
-                for i in range(len(model_list)):
-                    if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_{}".format(int(label_1[idx])))
-                            np.save(file_path, pca_features[i])
+        # for idx, match_pred in enumerate(match_preds):
+        #     if int(label_1[idx]) in class_to_extract:
+        #         pca_features = [pca.fit_transform(fa1[idx].T.cpu()),
+        #                         pca.fit_transform(fa2[idx].T.cpu()),
+        #                         pca.fit_transform(fa3[idx].T.cpu())]
+        #         for i in range(len(model_list)):
+        #             if "w1" in work:
+        #                 file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
+        #                 if os.path.exists(file_path):
+        #                     loaded_stacked_feats = np.load(file_path)
+        #                     print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
+        #                     updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+        #                     np.save(file_path, updated_stacked_feats)
+        #                 else:
+        #                     print("New Instance Feature_{}".format(int(label_1[idx])))
+        #                     np.save(file_path, pca_features[i])
                 
-                    if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_whole")
-                            np.save(file_path, pca_features[i])
+        #             if "w2" in work:
+        #                 file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+        #                 if os.path.exists(file_path):
+        #                     loaded_stacked_feats = np.load(file_path)
+        #                     print("Stacking to whole")
+        #                     updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+        #                     np.save(file_path, updated_stacked_feats)
+        #                 else:
+        #                     print("New Instance Feature_whole")
+        #                     np.save(file_path, pca_features[i])
 
-            if int(label_2[idx]) in class_to_extract:
-                pca_features = [pca.fit_transform(fb1[idx].T.cpu()),
-                                pca.fit_transform(fb2[idx].T.cpu()),
-                                pca.fit_transform(fb3[idx].T.cpu())]
-                for i in range(len(model_list)):
-                    if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_{}".format(int(label_2[idx])))
-                            np.save(file_path, pca_features[i])
+        #     if int(label_2[idx]) in class_to_extract:
+        #         pca_features = [pca.fit_transform(fb1[idx].T.cpu()),
+        #                         pca.fit_transform(fb2[idx].T.cpu()),
+        #                         pca.fit_transform(fb3[idx].T.cpu())]
+        #         for i in range(len(model_list)):
+        #             if "w1" in work:
+        #                 file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
+        #                 if os.path.exists(file_path):
+        #                     loaded_stacked_feats = np.load(file_path)
+        #                     print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
+        #                     updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+        #                     np.save(file_path, updated_stacked_feats)
+        #                 else:
+        #                     print("New Instance Feature_{}".format(int(label_2[idx])))
+        #                     np.save(file_path, pca_features[i])
                 
-                    if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_whole")
-                            np.save(file_path, pca_features[i])
+        #             if "w2" in work:
+        #                 file_path = "./runs_analysis/pca_features/three_models/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+        #                 if os.path.exists(file_path):
+        #                     loaded_stacked_feats = np.load(file_path)
+        #                     print("Stacking to whole")
+        #                     updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+        #                     np.save(file_path, updated_stacked_feats)
+        #                 else:
+        #                     print("New Instance Feature_whole")
+        #                     np.save(file_path, pca_features[i])
         
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')

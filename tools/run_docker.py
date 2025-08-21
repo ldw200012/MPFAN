@@ -1,13 +1,15 @@
 import os 
 
-path_to_reid_ws = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Object_Re-Identification/MPFAN'
-path_to_data = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Datasets'
+# path_to_reid_ws = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Object_Re-Identification/MPFAN'
+# path_to_data = '/mnt/0578ea01-61ee-40b7-84ae-4a44f210c570/Dongwook/Datasets'
+path_to_reid_ws = '/home/dongwooklee1201/morin/Research/Masters_Dissertation/mpfan/MPFAN-Renew'
+path_to_data = '/media/dongwooklee1201/Data_Storage_A1/Datasets'
 memory = '724g'
 cpus = 10
 gpus = 'all'
-port = 14001
+port = 14020
 image = 'daldidan/mpfan:latest'
-name = 'mpfan-test-restart'
+name = 'mpfan'
 
 command = "docker run -v {}:{} -v {}:{} --memory {} --shm-size=8g --cpus={} --gpus {} -p {}:{} --name {} --rm -it {}".format(
     path_to_reid_ws,"/mpfan/",path_to_data,"/mpfan/Datasets/",memory,cpus,gpus,port,port,name,image

@@ -1,41 +1,24 @@
-import torch.nn as nn
-from mmdet3d.models import FUSIONMODELS
-from transformers import (AutoImageProcessor, 
-                          AutoConfig, 
-                          AutoModel, 
-                          BeitModel, 
-                          AutoFeatureExtractor, 
-                          ViTForImageClassification, 
-                          DeiTForImageClassificationWithTeacher)
-import torch.nn.functional as F
-
-from .lanegcn_nets import PostRes,LinearRes
-from .pointattention import PointCloudAttention
-
-
-from .pointnet import PointNet, ED_PointNet
-from .pointnext import PointNeXt, ED_PointNeXt
-from .dgcnn_orig import DGCNN, ED_DGCNN
-from .deepgcn import DeepGCN, ED_DeepGCN
-from .backbone_net import Pointnet_Backbone, ED_Pointnet_Backbone
-from .spotr import SPoTr, ED_SPoTr
-from .dualreidnet import DualReID, ED_DualReID, ED_DualReID_selective
-
-from mmdet.models import BaseDetector
-import torch.distributed as dist
-from pytorch3d.loss import chamfer_distance
-
 import os
+import time
+import copy
+import torch
 import numpy as np
-# import umap
+import torch.nn as nn
+import torch.nn.functional as F
+from mmdet.models import BaseDetector
+from mmdet3d.models import FUSIONMODELS
+from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
+from mmdet3d.models.layers.pointattention import PointCloudAttention
+from mmdet3d.models.backbone.pointnet import PointNet, ED_PointNet
+from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
+from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
+from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN
+from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, ED_PointTransformerBackbone
+from mmdet3d.models.backbone.spotr import SPoTr, ED_SPoTr
+from mmdet3d.models.backbone.dualreidnet import DualReID, ED_DualReID
+from mmdet3d.models.layers.attention import cross_attention, local_self_attention, cross_lin_attn
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cosine
-
-import torch
-import copy
-import time 
-
-from .attention import corss_attention, local_self_attention, cross_lin_attn
 
 module_obj = {
     'Linear':nn.Linear,
@@ -46,8 +29,7 @@ module_obj = {
     'LayerNorm':nn.LayerNorm,
     'PostRes':PostRes,
     'LinearRes':LinearRes,
-    'Pointnet_Backbone':Pointnet_Backbone,
-    'corss_attention':corss_attention,
+    'cross_attention':cross_attention,
     'local_self_attention':local_self_attention,
     'Conv1d':nn.Conv1d,
     'Conv2d':nn.Conv2d,
@@ -56,20 +38,13 @@ module_obj = {
     'cross_lin_attn':cross_lin_attn,
     'PointCloudAttention':PointCloudAttention,
 
-    'PointNet':PointNet,
-    'ED_PointNet':ED_PointNet,
-    'PointNeXt':PointNeXt,
-    'ED_PointNeXt':ED_PointNeXt,
-    'DGCNN':DGCNN,
-    'ED_DGCNN':ED_DGCNN,
-    'DeepGCN':DeepGCN,
-    'ED_DeepGCN':ED_DeepGCN,
-    'ED_Pointnet_Backbone':ED_Pointnet_Backbone,
-    'SPoTr':SPoTr,
-    'ED_SPoTr':ED_SPoTr,
-    'DualReID':DualReID,
-    'ED_DualReID':ED_DualReID,
-    'ED_DualReID_selective':ED_DualReID_selective
+    'PointNet':PointNet, 'ED_PointNet':ED_PointNet,
+    'PointNeXt':PointNeXt, 'ED_PointNeXt':ED_PointNeXt,
+    'DGCNN':DGCNN, 'ED_DGCNN':ED_DGCNN,
+    'DeepGCN':DeepGCN, 'ED_DeepGCN':ED_DeepGCN,
+    'PointTransformerBackbone':PointTransformerBackbone, 'ED_PointTransformerBackbone':ED_PointTransformerBackbone,
+    'SPoTr':SPoTr, 'ED_SPoTr':ED_SPoTr,
+    'DualReID':DualReID, 'ED_DualReID':ED_DualReID,
 }
 
 def build_module(cfg):
@@ -138,7 +113,7 @@ class ReIDNet(BaseDetector):
         self.ce = nn.CrossEntropyLoss()
         self.kl = nn.KLDivLoss(log_target=True,reduction='none')
         self.lsmx = nn.LogSoftmax(dim=1)
-        self.smooth_l1 = nn.SmoothL1Loss(reduce=True,reduction='mean',beta=1.0)
+        self.smooth_l1 = nn.SmoothL1Loss(reduction='mean',beta=1.0)
         self.triplet_loss = nn.TripletMarginLoss(margin=triplet_margin,p=triplet_p)
         self.triplet_sample_num = triplet_sample_num
         
@@ -236,34 +211,16 @@ class ReIDNet(BaseDetector):
         assert sparse_1.shape == sparse_2.shape
         b, num_points,_ = sparse_1.shape
 
-        # if self.use_dgcnn:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
-        #     h = h.permute(0,2,1)
-        #     h = h.reshape(-1,h.shape[-1])
-        #     h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
-            
-        #     return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
-        # else:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
-
-        #     return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
-
         if self.use_dgcnn:
-            xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
+            xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
             h = h.permute(0,2,1)
             h = h.reshape(-1,h.shape[-1])
             h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
-
-            print("\nUsing DGCNN")
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
+            return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
         else:
-            xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
+            xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
 
-            print("\nNot using DGCNN")
-            print("F1/F2/F3 Shapes: ", f1.shape, f2.shape, f3.shape)
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
+            return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
 
     def get_match_supervision(self,h1,h2,xyz1,xyz2,id_1,id_2):
         return h1, h2, xyz1, xyz2, ( id_1 == id_2 ).float()
@@ -446,6 +403,8 @@ class ReIDNet(BaseDetector):
         return losses, log_vars
 
     def forward_test(self,sparse_1,sparse_2,label_1,label_2,id_1,id_2,size_1,size_2,vis_1,vis_2,*args,**kwargs):
+        feat_validation = False
+
         results = {}
         log_vars = None
 
@@ -456,8 +415,8 @@ class ReIDNet(BaseDetector):
         fp_filter = torch.where(torch.cat([id_1,id_2],dim=0) != -1)[0]
 
         # Siamese Forward
-        # xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1,sparse_2)
-        xyz1, xyz2, h1, h2, fa1, fb1, fa2, fb2, fa3, fb3 = self.siamese_forward(sparse_1,sparse_2)
+        # xyz1, xyz2, h1, h2, fa1, fa2, fa3, fb1, fb2, fb3 = self.siamese_forward(sparse_1,sparse_2)
+        xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1,sparse_2)
         h_cat = torch.cat([h1,h2],dim=0)
 
         # CLS Forward
@@ -470,121 +429,76 @@ class ReIDNet(BaseDetector):
         h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
         match_preds, match_loss, (o1,o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
 
-        print("FA1/FA2/FA3 Shapes: ", fa1.shape, ", ", fa2.shape, ", ", fa3.shape)
-        print("FB1/FB2/FB3 Shapes: ", fb1.shape, ", ", fb2.shape, ", ", fb3.shape)
-        # FA1/FA2/FA3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
-        # FB1/FB2/FB3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
         
-        # w1: save features by model & class
-        # w2: save features by model (whole class as one)
-        # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
-        # umap_model = umap.UMAP(n_components=16)
-        pca = PCA(n_components=16)
-        work = ["w1", "w2"]
-        model_name = "PTr_PN_GCI"
-        class_to_extract = [0,1,3,4,6,8] # 0.1.3.6.8
-        model_list = model_name.split('_')
+        if feat_validation:
+            ############
+            # w1: save features by model & class
+            # w2: save features by model (whole class as one)
+            # w3: 
+            # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
 
-        for idx, match_pred in enumerate(match_preds):
-            if int(label_1[idx]) in class_to_extract:
-                pca_features = [pca.fit_transform(fa1[idx].T.cpu()),
-                                pca.fit_transform(fa2[idx].T.cpu()),
-                                pca.fit_transform(fa3[idx].T.cpu())]
-                # umap_features = [umap_model.fit_transform(fa1[idx].T.cpu()),
-                #                 umap_model.fit_transform(fa2[idx].T.cpu()),
-                #                 umap_model.fit_transform(fa3[idx].T.cpu())]
-                for i in range(len(model_list)):
+            work = ["w1", "w2"]
+            pca = PCA(n_components=3)
+            model_name = "spotr"
+            # class_to_extract = [0,1,3,4,6,8,-1]
+            class_to_extract = [4]
+
+            #################################################################################################################################################
+            # Save Point Features by Model & Class
+            #################################################################################################################################################
+
+            for idx, match_pred in enumerate(match_preds):
+                if int(label_1[idx]) in class_to_extract: # If [instance A] class in 'class_to_extract'
+                    fa_T = h1[idx].T
+                    fa_pca = pca.fit_transform(fa_T.cpu())
+
                     if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
+                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_1[idx]))
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
-                            print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+                            print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, fa_pca.shape))
+                            updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
                             np.save(file_path, updated_stacked_feats)
                         else:
                             print("New Instance Feature_{}".format(int(label_1[idx])))
-                            np.save(file_path, pca_features[i])
-
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_1[idx]))
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, umap_features[i].shape))
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_{}".format(int(label_1[idx])))
-                        #     np.save(file_path, umap_features[i])
-                
+                            np.save(file_path, fa_pca)
+                    
                     if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+                            updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
                             np.save(file_path, updated_stacked_feats)
                         else:
                             print("New Instance Feature_whole")
-                            np.save(file_path, pca_features[i])
+                            np.save(file_path, fa_pca)
 
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("Stacking to whole")
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_whole")
-                        #     np.save(file_path, umap_features[i])
+                if int(label_2[idx]) in class_to_extract: # If [instance B] class in 'class_to_extract'
+                    fb_T = h2[idx].T
+                    fb_pca = pca.fit_transform(fb_T.cpu())
 
-            if int(label_2[idx]) in class_to_extract:
-                pca_features = [pca.fit_transform(fb1[idx].T.cpu()),
-                                pca.fit_transform(fb2[idx].T.cpu()),
-                                pca.fit_transform(fb3[idx].T.cpu())]
-                # umap_features = [umap_model.fit_transform(fb1[idx].T.cpu()),
-                #                 umap_model.fit_transform(fb2[idx].T.cpu()),
-                #                 umap_model.fit_transform(fb3[idx].T.cpu())]
-                for i in range(len(model_list)):
                     if "w1" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
+                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_2[idx]))
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
-                            print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, pca_features[i].shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+                            print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, fb_pca.shape))
+                            updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
                             np.save(file_path, updated_stacked_feats)
                         else:
-                            print("New Instance Feature_{}".format(int(label_2[idx])))
-                            np.save(file_path, pca_features[i])
-
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_{}.npy".format(model_name, model_list[i], int(label_2[idx]))
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, umap_features[i].shape))
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_{}".format(int(label_2[idx])))
-                        #     np.save(file_path, umap_features[i])
-                
+                            print("New Instance Feature_{}".format(int(label_1[idx])))
+                            np.save(file_path, fb_pca)
+                    
                     if "w2" in work:
-                        file_path = "./runs_analysis/pca_features/three_models/PCA_16/{}/PCAFEAT_{}_whole.npy".format(model_name, model_list[i])
+                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
                         if os.path.exists(file_path):
                             loaded_stacked_feats = np.load(file_path)
                             print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, pca_features[i], axis=0)
+                            updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
                             np.save(file_path, updated_stacked_feats)
                         else:
                             print("New Instance Feature_whole")
-                            np.save(file_path, pca_features[i])
-                        
-                        # file_path = "./runs_analysis/umap_features/three_models/UMAP_16/{}/UMAPFEAT_{}_whole.npy".format(model_name, model_list[i])
-                        # if os.path.exists(file_path):
-                        #     loaded_stacked_feats = np.load(file_path)
-                        #     print("Stacking to whole")
-                        #     updated_stacked_feats = np.append(loaded_stacked_feats, umap_features[i], axis=0)
-                        #     np.save(file_path, updated_stacked_feats)
-                        # else:
-                        #     print("New Instance Feature_whole")
-                        #     np.save(file_path, umap_features[i])
+                            np.save(file_path, fa_pca)
         
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')
@@ -651,119 +565,3 @@ class ReIDNet(BaseDetector):
 
     def init_weights(self):
         pass
-
-@FUSIONMODELS.register_module()
-class ReIDNet_RoT(ReIDNet):
-    def __init__(self,
-                 losses_to_use,alpha,
-                 backbone,numpoints,
-                 cls_head,match_head,shape_head,fp_head,downsample,
-                 cross_stage1,local_stage1,cross_stage2,local_stage2,
-                 triplet_margin,triplet_p,triplet_sample_num,
-                 output_feat_size,num_classes,use_o,eval_only=False,train_cfg=None,test_cfg=None, use_dgcnn=False):
-        super().__init__()
-
-    ###########################################
-    # ReID Model
-    ###########################################
-    def forward_train(self,sparse_1,sparse_2,label_1,label_2,id_1,id_2):
-        if self.eval_only:
-            exit(0)
-
-        log_vars = {}
-        losses = {}
-
-        sparse_1,sparse_2,label_1,label_2,id_1,id_2 = self.preprocess_inputs(sparse_1,sparse_2,label_1,label_2,id_1,id_2)
-        device = sparse_1.device
-
-        # Random Rotation
-        sparse_1_rot = torch.empty_like(sparse_1)
-        sparse_2_rot = torch.empty_like(sparse_2)
-
-        for i in range(sparse_1.shape[0]):
-            R = self.random_rotation_matrix().to(sparse_1.device)
-            sparse_1_rot[i] = torch.mm(sparse_1[i], R.T)
-
-        for i in range(sparse_2.shape[0]):
-            R = self.random_rotation_matrix().to(sparse_2.device)
-            sparse_2_rot[i] = torch.mm(sparse_2[i], R.T)
-
-        xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1_rot,sparse_2_rot)
-
-        # CLS Forward
-        h_cat = torch.cat([h1,h2],dim=0)
-        fp_filter = torch.where(torch.cat([id_1,id_2],dim=0) != -1)[0]
-        cls_preds, cls_loss = self.cls_forward(h_cat,torch.cat([label_1,label_2],dim=0),log_vars,device,prefix='')
-
-        # FP Forward
-        fp_preds, fp_loss = self.fp_forward(h_cat,torch.cat([label_1,label_2],dim=0),log_vars,device,prefix='')
-
-        # Match Forward
-        h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
-        match_preds, match_loss, (o1, o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
-
-        # KL Forward
-        kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')
-
-        # Triplet Forward
-        if self.use_o:
-            h1, h2 = self.get_pooled_feats(o1), self.get_pooled_feats(o2)
-        triplet_loss = self.get_triplet_loss(h1,h2,id_1,id_2,match,log_vars,device,prefix='')
-        
-        losses['reid_loss'] = match_loss + cls_loss + kl_loss + fp_loss + triplet_loss
-        return losses, log_vars
-    
-@FUSIONMODELS.register_module()
-class ReIDNet_MoE(BaseDetector):
-    def __init__(self,
-                 losses_to_use,alpha,
-                 backbone,numpoints,
-                 cls_head,match_head,shape_head,fp_head,downsample,
-                 cross_stage1,local_stage1,cross_stage2,local_stage2,
-                 triplet_margin,triplet_p,triplet_sample_num,
-                 output_feat_size,num_classes,use_o,eval_only=False,train_cfg=None,test_cfg=None,use_dgcnn=False):
-                 
-        super().__init__()
-
-        self.moe = MoE( dim = output_feat_size,
-                        num_experts = num_classes,               # increase the experts (# parameters) of your model without increasing computation
-                        hidden_dim = output_feat_size * 4,           # size of hidden dimension in each expert, defaults to 4 * dimension
-                        activation = nn.LeakyReLU,      # use your preferred activation, will default to GELU
-                        second_policy_train = 'random', # in top_2 gating, policy for whether to use a second-place expert
-                        second_policy_eval = 'random',  # all (always) | none (never) | threshold (if gate value > the given threshold) | random (if gate value > threshold * random_uniform(0, 1))
-                        second_threshold_train = 0.2,
-                        second_threshold_eval = 0.2,
-                        capacity_factor_train = 1.25,   # experts have fixed capacity per batch. we need some extra capacity in case gating is not perfectly balanced.
-                        capacity_factor_eval = 2.,      # capacity_factor_* should be set to a value >=1
-                        loss_coef = 1e-2                # multiplier on the auxiliary expert balancing auxiliary loss
-                        )
-    
-    def match_forward(self,h1,h2,xyz1,xyz2,match,log_vars,device,prefix=''):
-        o1, o2 = None, None
-        if self.losses_to_use['match']:
-            match_in, o1, o2 = self.xcorr_eff(h1,xyz1,h2,xyz2)
-            match_in, aux_loss = self.moe(match_in.permute(0,2,1))
-            match_in = match_in.permute(0,2,1)
-
-            match_in = self.get_pooled_feats(match_in)  
-            match_preds = self.match_head(match_in).squeeze(1)
-
-            match_loss = self.bce(match_preds,match)
-            match_loss = match_loss * self.alpha['match'] + aux_loss * 1.0
-
-            if self.compute_summary and log_vars != None:
-                log_vars[prefix+'match_loss'] = match_loss.item()
-                log_vars[prefix+'match_acc'] = (nn.Sigmoid()(match_preds) > 0.5).float().eq(match).float().mean().item()
-
-                gt_bins = torch.bincount(match.long())
-                log_vars[prefix+'num_preds_0'] = gt_bins[0].item()
-                log_vars[prefix+'num_preds_1'] = gt_bins[1].item() if len(gt_bins) > 1 else 0
-
-                pred_bins = torch.bincount((nn.Sigmoid()(match_preds) > 0.5).long())
-                log_vars[prefix+'num_gt_0'] = pred_bins[0].item()
-                log_vars[prefix+'num_gt_1'] = pred_bins[1].item() if len(pred_bins) > 1 else 0
-        else:
-            match_preds = None
-            match_loss = torch.tensor(0.,requires_grad=True,device=device)
-
-        return match_preds, match_loss, (o1, o2)

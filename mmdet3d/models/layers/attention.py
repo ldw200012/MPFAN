@@ -154,12 +154,12 @@ def get_graph_xyz(x, k=20, idx=None):
   
     return feature
 
-class corss_attention(nn.Module):
+class cross_attention(nn.Module):
     def __init__(self,
                  d_model,
                  nhead,
                  attention='linear'):
-        super(corss_attention, self).__init__()
+        super(cross_attention, self).__init__()
 
         self.dim = d_model // nhead
         self.nhead = nhead

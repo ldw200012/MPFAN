@@ -5,7 +5,7 @@ import torch.nn.parallel
 import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
-from .pointnet2_utils import knn_point
+from mmdet3d.models.layers.pointnet2_utils import knn_point
 
 class STN3d(nn.Module):
     def __init__(self, channel):
