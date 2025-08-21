@@ -86,6 +86,8 @@ data = dict(
                return_mode='dict',
                verbose=False,
                validation_seed=0,
+               use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=10,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=True,
                                 version='v1.0-{}'.format(version),
@@ -96,7 +98,10 @@ data = dict(
                                 load_scene=True,
                                 load_objects=True,
                                 load_feats=['xyz'],
-                                load_dims=[3],)
+                                load_dims=[3],
+                                # load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
+                                # load_dims=[6],
+                                )  # Changed from [3] to [6]
             ),
     val=dict(type='ReIDDatasetNuscenesFPValEven',
                cls_to_idx=cls_to_idx,
@@ -111,6 +116,8 @@ data = dict(
                verbose=False,
                validation_seed=0,
                max_combinations=2,
+               use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=10,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=False,
                                 version='v1.0-{}'.format(version),
@@ -121,5 +128,9 @@ data = dict(
                                 load_scene=True,
                                 load_objects=True,
                                 load_feats=['xyz'],
-                                load_dims=[3],))
+                                load_dims=[3],
+                                # load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
+                                # load_dims=[6],
+                                ) # Changed from [3] to [6]
+            )
 )

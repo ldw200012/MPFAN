@@ -28,6 +28,8 @@ class ReIDDatasetBase(object):
                  return_mode='dict',
                  verbose=False,
                  validation_seed=0,
+                 use_precomputed_eigen=False,
+                 eigen_knn_size=10,
                  sparse_loader=dict):
         super().__init__()
 
@@ -47,10 +49,19 @@ class ReIDDatasetBase(object):
         self.matching_eval = MatchingEval()
 
         self.subsample_sparse = subsample_sparse
+        
+        # Pass eigen_knn_size to sparse loader if not already present
+        if 'eigen_knn_size' not in sparse_loader:
+            sparse_loader['eigen_knn_size'] = eigen_knn_size
+        
         self.sparse_loader = build_dataset(sparse_loader)
 
         self.subsample_mode = subsample_mode
         self.val_subsample_mode = val_subsample_mode
+        
+        # Store eigenvalue computation parameters
+        self.use_precomputed_eigen = use_precomputed_eigen
+        self.eigen_knn_size = eigen_knn_size
 
     def maintain_api(self):
         # Maintain MMDetection3D API

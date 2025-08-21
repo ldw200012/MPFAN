@@ -45,19 +45,15 @@ We provide you the pretrained weights for the following models: PointNet, PointN
 
 ## 🎯 TRAIN
 ```
-CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_{dataset_name}_pts/training/training_{model_name}.py --seed 66  --run-dir runs/
+./train_reid.sh {GPU-ID} {model_name} {dataset_name}
 ```
 
 ## 🧪 TEST
 ```
-CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_{dataset_name}_pts/testing/testing_{model_name}.py --checkpoint weights/{checkpoint_name}.pth
+./test_reid.sh {GPU-ID} {model_name} {checkpoint_name} {dataset_name}
 ```
 
 ## 🙏 ACKNOWLEDGEMENTS
 Out repository is based on <a href="https://github.com/bentherien/point-cloud-reid.git">point-cloud-reid</a>, <a href="https://github.com/open-mmlab/mmdetection3d.git">mmdetection3d</a>, and <a href="https://github.com/guochengqian/openpoints.git">openpoints</a>.
 
 <!-- ## CITE OUR WORK -->
-
----
-
-**Repository Description:** MPFAN is a state-of-the-art LiDAR point cloud-based 3D object re-identification framework that leverages multi-perspective feature aggregation for robust vehicle tracking and identification in autonomous driving scenarios.

@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from mmdet3d.models.layers.pointnet2_utils import knn_point
 
-from mmdet3d.models.backbone.pointnet import PointNet, ED_PointNet
+from mmdet3d.models.backbone.pointnet import PointNet, PointNet_6C, ED_PointNet
 from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
 from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
 from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN

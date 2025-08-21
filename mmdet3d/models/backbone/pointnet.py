@@ -161,6 +161,48 @@ class PointNet(nn.Module):
         # print("\033[91xyz (input):\033[0m ", xyz.shape)
         # print("\033[91x (feature):\033[0m ", x.shape)
         return xyz, x
+
+class PointNet_6C(nn.Module):
+    def __init__(self, k=40, normal_channel=True, use_hybrid=False, ED_nsample=10, use_precomputed_eigen=False):
+        super(PointNet_6C, self).__init__()
+        print("\033[91mPointNet_6C Created\033[0m")
+
+        channel = 6
+        self.ED_nsample = ED_nsample
+        self.use_precomputed_eigen = use_precomputed_eigen
+        self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
+        self.use_hybrid = use_hybrid
+
+    def forward(self, x, backbone_list):
+        if self.use_precomputed_eigen:
+            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
+            # Input x already has shape [B, 6, N] with eigenvalues included
+            xyz, x = self.feat(x, self.use_hybrid)
+            
+            # Return only 3D coordinates for attention layers
+            xyz_3d = xyz[:, :3, :]
+            return xyz_3d, x
+        else:
+            # Original on-the-fly eigenvalue computation
+            xyz = x.permute(0,2,1)
+            
+            # Eigenvalue computation (same as ED_PointNet)
+            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
+            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
+            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
+            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
+            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
+            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+
+            x_6c = torch.cat((xyz, eigenvalues), dim=2)  # [B, N, 6]
+            x_6c = x_6c.permute(0, 2, 1)
+            
+            xyz, x = self.feat(x_6c, self.use_hybrid)
+            
+            # Return only 3D coordinates for attention layers, but use 6-channel features internally
+            xyz_3d = xyz[:, :3, :]  # Extract only x, y, z coordinates
+
+            return xyz_3d, x
     
 class ED_PointNet(nn.Module):
     def __init__(self, k=40, normal_channel=True, use_hybrid=False, ED_nsample=10, ED_conv_out=4):

@@ -73,11 +73,12 @@ def load_nuscenes_metadata_split(metadata_path,version,train):
 @DATASETS.register_module()
 class ObjectLoaderSparseBase(Loader):
 
-    def __init__(self, tracking_classes, min_points, **kwargs) -> None:
+    def __init__(self, tracking_classes, min_points, eigen_knn_size=10, **kwargs) -> None:
         super().__init__(**kwargs)
 
         self.min_points = min_points
         self.tracking_classes = tracking_classes
+        self.eigen_knn_size = eigen_knn_size
 
     def load(self, *args, **kwargs):
         raise NotImplementedError("This method shouw be implemented in the child class")
@@ -222,7 +223,13 @@ class ObjectLoaderSparseBase(Loader):
             path = osp.join(info['path'], frame_idx)
             #self.obj_id_to_nums[info['id']][frame_idx])
             for name, dim in zip(self.load_feats, self.load_dims):
-                feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
+                # Handle special naming for eigenvalue files
+                if name == 'xyz_eigen':
+                    # For eigenvalue files, include the KNN sample size in filename
+                    feats_file = f'{self.data_root}/{path}/pts_{name}_{self.eigen_knn_size}.bin'
+                else:
+                    feats_file = f'{self.data_root}/{path}/pts_{name}.bin'
+                
                 num_pts = int(os.stat(feats_file).st_size // (4 * dim))
                 num_pts -= int(num_pts * self.load_fraction)
                 points.append(np.fromfile(feats_file,

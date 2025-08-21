@@ -13,7 +13,7 @@ from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
 from mmdet3d.models.layers.pointattention import PointCloudAttention
 
 
-from ..backbone.pointnet import PointNet, ED_PointNet
+from ..backbone.pointnet import PointNet, PointNet_6C, ED_PointNet
 from ..backbone.pointnext import PointNeXt, ED_PointNeXt
 from ..backbone.dgcnn_orig import DGCNN, ED_DGCNN
 from ..backbone.deepgcn import DeepGCN, ED_DeepGCN

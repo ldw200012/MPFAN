@@ -9,7 +9,7 @@ from mmdet.models import BaseDetector
 from mmdet3d.models import FUSIONMODELS
 from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
 from mmdet3d.models.layers.pointattention import PointCloudAttention
-from mmdet3d.models.backbone.pointnet import PointNet, ED_PointNet
+from mmdet3d.models.backbone.pointnet import PointNet, PointNet_6C, ED_PointNet
 from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
 from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
 from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN
@@ -38,7 +38,7 @@ module_obj = {
     'cross_lin_attn':cross_lin_attn,
     'PointCloudAttention':PointCloudAttention,
 
-    'PointNet':PointNet, 'ED_PointNet':ED_PointNet,
+    'PointNet':PointNet, 'PointNet_6C':PointNet_6C,'ED_PointNet':ED_PointNet,
     'PointNeXt':PointNeXt, 'ED_PointNeXt':ED_PointNeXt,
     'DGCNN':DGCNN, 'ED_DGCNN':ED_DGCNN,
     'DeepGCN':DeepGCN, 'ED_DeepGCN':ED_DeepGCN,
