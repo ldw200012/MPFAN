@@ -10,7 +10,7 @@ from mmdet3d.models import FUSIONMODELS
 from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
 from mmdet3d.models.layers.pointattention import PointCloudAttention
 from mmdet3d.models.backbone.pointnet import PointNet, PointNet_6C, ED_PointNet
-from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
+from mmdet3d.models.backbone.pointnext import PointNeXt, PointNeXt_6C, ED_PointNeXt
 from mmdet3d.models.backbone.dgcnn_orig import DGCNN, DGCNN_6C, ED_DGCNN
 from mmdet3d.models.backbone.deepgcn import DeepGCN, DeepGCN_6C, ED_DeepGCN
 from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, PointTransformerBackbone_6C, ED_PointTransformerBackbone
@@ -39,7 +39,7 @@ module_obj = {
     'PointCloudAttention':PointCloudAttention,
 
     'PointNet':PointNet, 'PointNet_6C':PointNet_6C,'ED_PointNet':ED_PointNet,
-    'PointNeXt':PointNeXt, 'ED_PointNeXt':ED_PointNeXt,
+    'PointNeXt':PointNeXt, 'PointNeXt_6C':PointNeXt_6C, 'ED_PointNeXt':ED_PointNeXt,
     'DGCNN':DGCNN, 'DGCNN_6C':DGCNN_6C, 'ED_DGCNN':ED_DGCNN,
     'DeepGCN':DeepGCN, 'DeepGCN_6C':DeepGCN_6C, 'ED_DeepGCN':ED_DeepGCN,
     'PointTransformerBackbone':PointTransformerBackbone, 'PointTransformerBackbone_6C':PointTransformerBackbone_6C, 'ED_PointTransformerBackbone':ED_PointTransformerBackbone,

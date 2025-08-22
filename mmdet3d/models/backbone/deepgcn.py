@@ -29,7 +29,7 @@ class DeepGCN_6C(nn.Module):
 
         torch.cuda.synchronize()
 
-        in_channels = 6 if use_precomputed_eigen else 3
+        in_channels = 3
         self.use_precomputed_eigen = use_precomputed_eigen
         
         self.encoder = DeepGCNEncoder(in_channels=in_channels, channels=64, emb_dims=emb_dims, n_blocks=14, # n_blocks=14
@@ -38,15 +38,28 @@ class DeepGCN_6C(nn.Module):
                                       norm_args={'norm': 'bn'}, act_args={'act': 'relu'}, conv_args={'order': 'conv-norm-act'},
                                       is_seg=False)
                                       
+    def _break_up_pc(self, pc):
+        xyz = pc[..., 0:3].contiguous()
+        eigenvalues = pc[..., 3:].contiguous()
+        return xyz, eigenvalues
+
     def forward(self, data, numpoints):
+        # B, N, C
+
         if self.use_precomputed_eigen:
-            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
-            # Input data already has shape [B, 6, N] with eigenvalues included
-            _, f = self.encoder.forward_seg_feat(data)
+            # Input data already has shape [B, N, 6] - no need to transpose
+            xyz, eigenvalues = self._break_up_pc(data)
             
-            # Return only 3D coordinates for attention layers
-            data_3d = data[:, :3, :]  # Extract only x, y, z coordinates
-            return data_3d, f
+            # Make sure both tensors are contiguous
+            xyz = xyz.contiguous()
+            eigenvalues = eigenvalues.contiguous()
+            
+            # DeepGCN expects features in [B, C, N] format, so transpose eigenvalues
+            eigenvalues_transposed = eigenvalues.transpose(1, 2).contiguous()  # [B, N, 3] -> [B, 3, N]
+            
+            _, f = self.encoder.forward_seg_feat(pts=xyz, features=eigenvalues_transposed)
+            
+            return xyz, f
         else:
             # Original 3-channel behavior
             _, f = self.encoder.forward_seg_feat(data)
@@ -85,14 +98,11 @@ class ED_DeepGCN(nn.Module):
         return xyz, features
                                       
     def forward(self, data, numpoints):
-        print("DATA SHAPE: ", data.shape) # [B, N, C]
-
-        xyz, eigenvalues = self._break_up_pc(data)
-
-        _, f = self.encoder.forward_seg_feat(xyz)
-
-        if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
+        if self.use_precomputed_eigen:
+            # Input data already has shape [B, N, 6] - no need to transpose
+            xyz, eigenvalues = self._break_up_pc(data)
+        else:
+            # Compute eigenvalues on-the-fly
             group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
             batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
             neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
@@ -100,6 +110,7 @@ class ED_DeepGCN(nn.Module):
             cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
             eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
 
+        _, f = self.encoder.forward_seg_feat(xyz)
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################

@@ -20,8 +20,8 @@ model = dict(
     use_dgcnn=False,
 
     # backbone=dict(type='DualReID', input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16]),
-    # backbone=dict(type='DualReID_6C', input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], use_precomputed_eigen=True),
-    backbone=dict(type='ED_DualReID', input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], use_precomputed_eigen=True),
+    # backbone=dict(type='ED_DualReID', input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], use_precomputed_eigen=True),
+    backbone=dict(type='DualReID_6C', input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], use_precomputed_eigen=True),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],

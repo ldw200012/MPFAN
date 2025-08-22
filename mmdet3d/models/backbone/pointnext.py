@@ -29,6 +29,48 @@ class PointNeXt(nn.Module):
 
         return data, f
 
+class PointNeXt_6C(nn.Module):
+    def __init__(self, use_precomputed_eigen=False):
+        super(PointNeXt_6C, self).__init__()
+        print("\033[91mPointNeXt_6C Created\033[0m")
+        
+        self.use_precomputed_eigen = use_precomputed_eigen
+
+        torch.cuda.synchronize()
+        
+        in_channels = 3
+        self.encoder = PointNextEncoder(blocks=[1, 4, 7, 4, 4], strides=[1, 3, 3, 3, 3],
+                                        sa_layers=1, sa_use_res=False,
+                                        width=64, in_channels=in_channels, expansion=4, radius=0.1, nsample=32,
+                                        aggr_args={'feature_type':'dp_fj', 'reduction':'max'}, group_args={'NAME':'ballquery', 'normalize_dp':True}, conv_args={'order':'conv-norm-act'},
+                                        act_args={'act':'relu'}, norm_arg={'norm':'bn'})
+        
+        self.decoder = PointNextDecoder(encoder_channel_list=self.encoder.channel_list if hasattr(self.encoder,'channel_list') else None,
+                                    decoder_layers=2, decoder_stages=4, in_channels=in_channels)
+        
+    def _break_up_pc(self, pc):
+        xyz = pc[..., 0:3].contiguous()
+        eigenvalues = pc[..., 3:].contiguous()
+        return xyz, eigenvalues
+
+    def forward(self, data, numpoints):
+        # B, N, C
+
+        if self.use_precomputed_eigen:
+            xyz, eigenvalues = self._break_up_pc(data)
+            xyz = xyz.contiguous()
+            eigenvalues = eigenvalues.contiguous()
+
+            p, f = self.encoder.forward_seg_feat(xyz, f0=eigenvalues.permute(0,2,1))
+        else:
+            xyz = data
+            p, f = self.encoder.forward_seg_feat(xyz)
+        
+        if self.decoder is not None:
+            f = self.decoder(p, f).squeeze(-1)
+
+        return xyz, f
+
 class ED_PointNeXt(nn.Module):
     def __init__(self, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
         super(ED_PointNeXt, self).__init__()
