@@ -15,7 +15,7 @@ from mmdet3d.models.backbone.spotr import SPoTr, SPoTr_6C, ED_SPoTr
 ######################################################
 
 class DualReID(nn.Module):
-    def __init__(self, input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16]):
+    def __init__(self, SA_conv_out=128, conv_out=128, nsample=[16,16,16]):
         super(DualReID, self).__init__()
         # torch.cuda.synchronize()
 
@@ -66,14 +66,12 @@ class DualReID(nn.Module):
         return xyz, z_ # [B, N/2, 3], [B, conv_out=64, N/2]
 
 class DualReID_6C(nn.Module):
-    def __init__(self, input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], use_precomputed_eigen=False):
+    def __init__(self, SA_conv_out=128, conv_out=128, nsample=[16,16,16]):
         super(DualReID_6C, self).__init__()
         # torch.cuda.synchronize()
 
-        self.use_precomputed_eigen = use_precomputed_eigen
-
-        self.sub1_SA = PointTransformerBackbone_6C(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample, use_precomputed_eigen=use_precomputed_eigen)
-        self.sub2_DG = DGCNN_6C(dropout=0.5,emb_dims=1024, k=20, output_channels=40, use_precomputed_eigen=use_precomputed_eigen) # output = emb_dims = 1024
+        self.sub1_SA = PointTransformerBackbone_6C(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
+        self.sub2_DG = DGCNN_6C(dropout=0.5,emb_dims=1024, k=20, output_channels=40) # output = emb_dims = 1024
 
          # 1024 to 32 for DGCNN
         self.DG_conv1 = nn.Conv1d(1024, 256, 1)
@@ -94,7 +92,7 @@ class DualReID_6C(nn.Module):
 
     def _break_up_pc(self, pc):
         xyz = pc[..., 0:3].contiguous()
-        features = pc[..., 3:].transpose(1, 2).contiguous() if pc.size(-1) > 3 else None
+        features = None
         return xyz, features
 
     def forward(self, pointcloud, numpoints):
@@ -123,11 +121,11 @@ class DualReID_6C(nn.Module):
 ######################################################
 
 class ED_DualReID(nn.Module):
-    def __init__(self, input_channels=0, use_xyz=True, SA_conv_out=128, conv_out=128, nsample=[16,16,16], fe_module='pointnet', ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
+    def __init__(self, SA_conv_out=128, conv_out=128, nsample=[16,16,16], ED_conv_out=4):
         super(ED_DualReID, self).__init__()
         # torch.cuda.synchronize()
 
-        self.use_precomputed_eigen = use_precomputed_eigen
+        print("\033[91mED_DualReID Created\033[0m")
 
         self.sub1_SA = PointTransformerBackbone(input_channels=0, use_xyz=True, conv_out=SA_conv_out, nsample=nsample)
         self.sub2_DG = DGCNN(dropout=0.5,emb_dims=1024, k=20, output_channels=40) # output = emb_dims = 1024
@@ -150,7 +148,6 @@ class ED_DualReID(nn.Module):
         self.bn3 = nn.BatchNorm1d(conv_out)
 
         # Eigen ###############################################################################################################
-        self.ED_nsample = ED_nsample
         self.ED_conv_out = ED_conv_out
         self.sub3_ED = nn.Sequential(
                             nn.Linear(3, ED_conv_out),
@@ -184,15 +181,6 @@ class ED_DualReID(nn.Module):
         f_ = F.relu(self.bn1(self.conv1(f)))
         f_ = F.relu(self.bn2(self.conv2(f_)))
         f_ = F.relu(self.bn3(self.conv3(f_)))
-
-        if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
 
         eigen_feature = self.sub3_ED(eigenvalues)
 

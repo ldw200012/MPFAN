@@ -121,8 +121,8 @@ class DeepGCNEncoder(nn.Module):
             features = pts.transpose(1, 2).contiguous()
         features = features.unsqueeze(-1)
         # print("IN_CHANNELS: ", self.in_channels) # 3
-        print("FEATURES SHAPE: ", features.shape) # [B, N, 3]
-        print("PTS SHAPE: ", pts.shape) # [B, N, 3]
+        # print("FEATURES SHAPE: ", features.shape) # [B, N, 3]
+        # print("PTS SHAPE: ", pts.shape) # [B, N, 3]
         feats = [self.head(features, self.knn(pts))]
         for i in range(self.n_blocks - 1):
             feats.append(self.backbone[i](feats[-1]))

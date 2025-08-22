@@ -22,8 +22,8 @@ model = dict(
     use_dgcnn=False,
     
     # backbone=dict(type='SPoTr'),
-    backbone=dict(type='ED_SPoTr', ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=True),
-    # backbone=dict(type='SPoTr_6C', use_precomputed_eigen=True),
+    # backbone=dict(type='SPoTr_6C'),
+    backbone=dict(type='ED_SPoTr', ED_conv_out=4),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],

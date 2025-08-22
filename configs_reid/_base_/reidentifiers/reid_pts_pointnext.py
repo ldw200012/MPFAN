@@ -21,9 +21,9 @@ model = dict(
     num_classes=num_classes,
     use_dgcnn=False,
     
-    # backbone=dict(type='PointNeXt'),
-    # backbone=dict(type='ED_PointNeXt', ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=True),
-    backbone=dict(type='PointNeXt_6C', use_precomputed_eigen=True),
+    backbone=dict(type='PointNeXt'),
+    # backbone=dict(type='PointNeXt_6C'),
+    # backbone=dict(type='ED_PointNeXt', ED_conv_out=4),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],

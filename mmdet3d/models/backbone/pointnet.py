@@ -140,9 +140,11 @@ def feature_transform_reguliarzer(trans):
     loss = torch.mean(torch.norm(torch.bmm(trans, trans.transpose(2, 1)) - I, dim=(1, 2)))
     return loss
 
+# x: [B, C, N]
 class PointNet(nn.Module):
-    def __init__(self, k=40, normal_channel=True, use_hybrid=False):
+    def __init__(self, k=40, normal_channel=False, use_hybrid=False):
         super(PointNet, self).__init__()
+
         print("\033[91mPointNet Created\033[0m")
 
         if normal_channel:
@@ -153,63 +155,29 @@ class PointNet(nn.Module):
         self.use_hybrid = use_hybrid
 
     def forward(self, x, backbone_list):
-        # print("\033[91mPointNet input\033[0m")
-
         xyz, x = self.feat(x, self.use_hybrid)
-
-        # print("\033[91mPointNet forward return xyz, x\033[0m")
-        # print("\033[91xyz (input):\033[0m ", xyz.shape)
-        # print("\033[91x (feature):\033[0m ", x.shape)
         return xyz, x
 
+# x: [B, C, N]
 class PointNet_6C(nn.Module):
-    def __init__(self, k=40, normal_channel=True, use_hybrid=False, ED_nsample=10, use_precomputed_eigen=False):
+    def __init__(self, k=40, use_hybrid=False):
         super(PointNet_6C, self).__init__()
+
         print("\033[91mPointNet_6C Created\033[0m")
 
-        channel = 6
-        self.ED_nsample = ED_nsample
-        self.use_precomputed_eigen = use_precomputed_eigen
-        self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
+        self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=6)
         self.use_hybrid = use_hybrid
 
     def forward(self, x, backbone_list):
-        if self.use_precomputed_eigen:
-            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
-            # Input x already has shape [B, 6, N] with eigenvalues included
-            xyz, x = self.feat(x, self.use_hybrid)
-            
-            # Return only 3D coordinates for attention layers
-            xyz_3d = xyz[:, :3, :]
-            return xyz_3d, x
-        else:
-            # Original on-the-fly eigenvalue computation
-            xyz = x.permute(0,2,1)
-            
-            # Eigenvalue computation (same as ED_PointNet)
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
-
-            x_6c = torch.cat((xyz, eigenvalues), dim=2)  # [B, N, 6]
-            x_6c = x_6c.permute(0, 2, 1)
-            
-            xyz, x = self.feat(x_6c, self.use_hybrid)
-            
-            # Return only 3D coordinates for attention layers, but use 6-channel features internally
-            xyz_3d = xyz[:, :3, :]  # Extract only x, y, z coordinates
-
-            return xyz_3d, x
+        xyz, x = self.feat(x, self.use_hybrid)
+        return xyz[:, :3, :], x
     
+# x: [B, C, N]
 class ED_PointNet(nn.Module):
-    def __init__(self, k=40, normal_channel=True, use_hybrid=False, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
+    def __init__(self, k=40, normal_channel=False, use_hybrid=False, ED_conv_out=4):
         super(ED_PointNet, self).__init__()
-        print("\033[91mED_PointNet Created\033[0m")
 
-        self.use_precomputed_eigen = use_precomputed_eigen
+        print("\033[91mED_PointNet Created\033[0m")
 
         if normal_channel:
             channel = 6
@@ -218,15 +186,12 @@ class ED_PointNet(nn.Module):
         self.feat = PointNetEncoder(global_feat=True, feature_transform=True, channel=channel)
         self.use_hybrid = use_hybrid
 
-        # Eigen ###############################################################################################################
-        self.ED_nsample = ED_nsample
-        self.ED_conv_out = ED_conv_out
         self.sub3_ED = nn.Sequential(
                             nn.Linear(3, ED_conv_out),
                             nn.ReLU(),
-                            nn.Linear(ED_conv_out, ED_conv_out))
+                            nn.Linear(ED_conv_out, ED_conv_out)
+                            )
         
-        # Final ###############################################################################################################
         self.conv_final = nn.Conv1d(1024 + ED_conv_out, 1024, 1)
         self.bn_final = nn.BatchNorm1d(1024)
 
@@ -236,28 +201,13 @@ class ED_PointNet(nn.Module):
         return xyz, features
 
     def forward(self, x, backbone_list):
-        # print("X SHAPE: ", x.shape) # [B, C, N]
-        
         xyz, eigenvalues = self._break_up_pc(x.permute(0,2,1))
         xyz_permuted = xyz.permute(0,2,1)
-        # print("XYZ SHAPE: ", xyz.shape) # [B, N, 3]
-        # print("EIGENVALUES SHAPE: ", eigenvalues.shape) # [B, N, 3]
 
         out, feat = self.feat(xyz_permuted, self.use_hybrid)
-        # print("OUT SHAPE: ", out.shape) # [B, 3, N]
-        # print("FEAT SHAPE: ", feat.shape) # [B, 1024, N]
 
-        if not self.use_precomputed_eigen:
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
-        
         eigen_feature = self.sub3_ED(eigenvalues)
 
-        # Final ###############################################################################################################
         z = torch.cat((feat, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
 

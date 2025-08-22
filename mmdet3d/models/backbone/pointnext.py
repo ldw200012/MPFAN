@@ -7,6 +7,7 @@ from openpoints.models.backbone import PointNextEncoder, PointNextDecoder
 class PointNeXt(nn.Module):
     def __init__(self):
         super(PointNeXt, self).__init__()
+
         print("\033[91mPointNext Created\033[0m")
 
         torch.cuda.synchronize()
@@ -29,13 +30,13 @@ class PointNeXt(nn.Module):
 
         return data, f
 
+# data: [B, N, C]
 class PointNeXt_6C(nn.Module):
-    def __init__(self, use_precomputed_eigen=False):
+    def __init__(self):
         super(PointNeXt_6C, self).__init__()
+        
         print("\033[91mPointNeXt_6C Created\033[0m")
         
-        self.use_precomputed_eigen = use_precomputed_eigen
-
         torch.cuda.synchronize()
         
         in_channels = 3
@@ -54,29 +55,21 @@ class PointNeXt_6C(nn.Module):
         return xyz, eigenvalues
 
     def forward(self, data, numpoints):
-        # B, N, C
+        xyz, eigenvalues = self._break_up_pc(data)
 
-        if self.use_precomputed_eigen:
-            xyz, eigenvalues = self._break_up_pc(data)
-            xyz = xyz.contiguous()
-            eigenvalues = eigenvalues.contiguous()
-
-            p, f = self.encoder.forward_seg_feat(xyz, f0=eigenvalues.permute(0,2,1))
-        else:
-            xyz = data
-            p, f = self.encoder.forward_seg_feat(xyz)
+        p, f = self.encoder.forward_seg_feat(xyz, f0=eigenvalues.permute(0,2,1))
         
         if self.decoder is not None:
             f = self.decoder(p, f).squeeze(-1)
 
         return xyz, f
 
+# data: [B, N, C]
 class ED_PointNeXt(nn.Module):
-    def __init__(self, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
+    def __init__(self, ED_conv_out=4):
         super(ED_PointNeXt, self).__init__()
+
         print("\033[91mED_PointNext Created\033[0m")
-        
-        self.use_precomputed_eigen = use_precomputed_eigen
 
         torch.cuda.synchronize()
 
@@ -90,15 +83,13 @@ class ED_PointNeXt(nn.Module):
         self.decoder = PointNextDecoder(encoder_channel_list=self.encoder.channel_list if hasattr(self.encoder,'channel_list') else None,
                                     decoder_layers=2, decoder_stages=4, in_channels=in_channels)
         
-        # Eigen ###############################################################################################################
-        self.ED_nsample = ED_nsample
         self.ED_conv_out = ED_conv_out
         self.sub3_ED = nn.Sequential(
                             nn.Linear(3, ED_conv_out),
                             nn.ReLU(),
-                            nn.Linear(ED_conv_out, ED_conv_out))
+                            nn.Linear(ED_conv_out, ED_conv_out)
+                            )
         
-        # Final ###############################################################################################################
         self.conv_final = nn.Conv1d(64 + ED_conv_out, 64, 1)
         self.bn_final = nn.BatchNorm1d(64)
 
@@ -108,28 +99,14 @@ class ED_PointNeXt(nn.Module):
         return xyz, features
 
     def forward(self, data, numpoints):
-        # print("DATA SHAPE: ", data.shape) # [B, N, C]
 
         xyz, eigenvalues = self._break_up_pc(data)
-        # print("XYZ SHAPE: ", xyz.shape) # [B, N, 3]
-        # print("EIGENVALUES SHAPE: ", eigenvalues.shape) # [B, N, 3]
 
         p, f = self.encoder.forward_seg_feat(xyz)
         f = self.decoder(p, f).squeeze(-1)
-        # print("F SHAPE: ", f.shape)
-
-        if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
 
         eigen_feature = self.sub3_ED(eigenvalues)
 
-        # Final ###############################################################################################################
         z = torch.cat((f, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
 

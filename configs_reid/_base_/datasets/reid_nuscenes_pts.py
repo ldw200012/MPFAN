@@ -67,8 +67,13 @@ CLASSES = ['car','truck', 'construction_vehicle', 'bus', 'trailer','barrier', 'm
 version = 'trainval'
 train_metadata_version = 'trainval-det-both'
 val_metadata_version = 'trainval-det-both'
-
 resume_from = None
+
+#################### CUSTOMIZE HERE ####################
+load_dims = [6]       # [3] / [6]
+eigen_knn_size = 10
+load_feats = ['xyz_eigen'] if load_dims[0] == 6 else ['xyz']
+#################### CUSTOMIZE HERE ####################
 
 data = dict(
     samples_per_gpu=128,
@@ -86,8 +91,8 @@ data = dict(
                return_mode='dict',
                verbose=False,
                validation_seed=0,
-               use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
-               eigen_knn_size=16,  # KNN sample size used for eigenvalue computation
+               load_dims=load_dims,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=eigen_knn_size,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=True,
                                 version='v1.0-{}'.format(version),
@@ -97,10 +102,8 @@ data = dict(
                                 min_points=128,
                                 load_scene=True,
                                 load_objects=True,
-                                # load_feats=['xyz'],
-                                # load_dims=[3],
-                                load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
-                                load_dims=[6],
+                                load_feats=load_feats,
+                                load_dims=load_dims,
                                 )  # Changed from [3] to [6]
             ),
     val=dict(type='ReIDDatasetNuscenesFPValEven',
@@ -116,8 +119,8 @@ data = dict(
                verbose=False,
                validation_seed=0,
                max_combinations=2,
-               use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
-               eigen_knn_size=16,  # KNN sample size used for eigenvalue computation
+               load_dims=load_dims,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=eigen_knn_size,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=False,
                                 version='v1.0-{}'.format(version),
@@ -127,10 +130,8 @@ data = dict(
                                 min_points=128,
                                 load_scene=True,
                                 load_objects=True,
-                                # load_feats=['xyz'],
-                                # load_dims=[3],
-                                load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
-                                load_dims=[6],
+                                load_feats=load_feats,
+                                load_dims=load_dims,
                                 ) # Changed from [3] to [6]
             )
 )

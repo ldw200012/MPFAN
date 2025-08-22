@@ -28,7 +28,7 @@ class ReIDDatasetBase(object):
                  return_mode='dict',
                  verbose=False,
                  validation_seed=0,
-                 use_precomputed_eigen=False,
+                 load_dims=[3],
                  eigen_knn_size=10,
                  sparse_loader=dict):
         super().__init__()
@@ -60,7 +60,7 @@ class ReIDDatasetBase(object):
         self.val_subsample_mode = val_subsample_mode
         
         # Store eigenvalue computation parameters
-        self.use_precomputed_eigen = use_precomputed_eigen
+        self.load_dims = load_dims[0]
         self.eigen_knn_size = eigen_knn_size
 
     def maintain_api(self):
@@ -455,7 +455,7 @@ class ReIDDatasetBase(object):
         # print("\033[91m[return_item]subsample mode: \033[0m", self.subsample_mode)
 
         if self.subsample_mode == "random":
-            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.use_precomputed_eigen), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.use_precomputed_eigen)
+            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.load_dims), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.load_dims)
         elif self.subsample_mode == "fps":
             s1 = torch.tensor(fps_or_interpolate(s1, self.subsample_sparse))
             s2 = torch.tensor(fps_or_interpolate(s2, self.subsample_sparse))
@@ -490,7 +490,7 @@ class ReIDDatasetBase(object):
         # # s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse)
 
         if self.val_subsample_mode == "random":
-            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.use_precomputed_eigen), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.use_precomputed_eigen)
+            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.load_dims), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.load_dims)
         elif self.val_subsample_mode == "fps":
             s1 = torch.tensor(fps_or_interpolate(s1, self.subsample_sparse))
             s2 = torch.tensor(fps_or_interpolate(s2, self.subsample_sparse))

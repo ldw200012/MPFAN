@@ -48,6 +48,13 @@ val_metadata_version = 'waymo-det-both-val'
 
 resume_from = None
 
+#################### CUSTOMIZE HERE ####################
+load_feats = ['xyz_eigen']  # 'xyz' / 'xyz_eigen'
+load_dims = [6]             # [3] / [6]
+eigen_knn_size = 16
+use_precomputed_eigen = True
+#################### CUSTOMIZE HERE ####################
+
 data = dict(
     samples_per_gpu=64,
     val_samples_per_gpu=128,
@@ -65,6 +72,8 @@ data = dict(
                return_mode='dict',
                verbose=False,
                validation_seed=0,
+               use_precomputed_eigen=use_precomputed_eigen,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=eigen_knn_size,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseWaymo',
                                 metadata_path='Datasets/Waymo-ReID/data/lstk/updated_sparse-{}/metadata'.format(train_metadata_version),
                                 data_root='Datasets/Waymo-ReID/data/lstk/updated_sparse-{}'.format(train_metadata_version),
@@ -72,8 +81,8 @@ data = dict(
                                 tracking_classes=tracking_classes,
                                 load_scene=True,
                                 load_objects=True,
-                                load_feats=['xyz'],
-                                load_dims=[3],),
+                                load_feats=load_feats,
+                                load_dims=load_dims,),
             ),
     val=dict(type='ReIDDatasetWaymoFPValEven',
                train=False,
@@ -89,6 +98,8 @@ data = dict(
                verbose=False,
                validation_seed=0,
                max_combinations=10,
+               use_precomputed_eigen=use_precomputed_eigen,  # New option to use pre-computed eigenvalues
+               eigen_knn_size=eigen_knn_size,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseWaymo',
                                 metadata_path='Datasets/Waymo-ReID/data/lstk/sparse-{}/metadata'.format(val_metadata_version),
                                 data_root='Datasets/Waymo-ReID/data/lstk/sparse-{}'.format(val_metadata_version),
@@ -97,7 +108,7 @@ data = dict(
                                 use_metdata_fix=True,
                                 load_scene=True,
                                 load_objects=True,
-                                load_feats=['xyz'],
-                                load_dims=[3],),
+                                load_feats=load_feats,
+                                load_dims=load_dims,),
             ),
 )

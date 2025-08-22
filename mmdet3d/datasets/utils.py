@@ -602,14 +602,14 @@ def get_knn(coi_to_size, k_num=200):
             
     return obj_id_to_knn
 
-def subsamplePC(PC, subsample_number, use_precomputed_eigen=False):
+def subsamplePC(PC, subsample_number, load_dims=3):
     """
     Subsample point cloud data.
     
     Args:
         PC: Point cloud data with shape [channels, num_points]
         subsample_number: Number of points to subsample to
-        use_precomputed_eigen: Whether using pre-computed eigenvalues (6-channel data)
+        load_dims: Number of dimensions to load (3 for xyz, 6 for xyz+eigenvalues)
     """
 
     subsample_option = 1
@@ -622,14 +622,10 @@ def subsamplePC(PC, subsample_number, use_precomputed_eigen=False):
         if subsample_number == 0:
             pass
         elif PC.shape[1] > 2:
-            # Handle different channel counts based on data type
-            if use_precomputed_eigen and PC.shape[0] == 6:
-                # Keep all 6 channels for pre-computed eigenvalue data
-                num_channels = 6
-            elif PC.shape[0] > 3:
-                # For other cases, take only first 3 channels (original behavior)
-                PC = PC[0:3, :]
-                num_channels = 3
+            # Preserve channels based on load_dims
+            if PC.shape[0] >= load_dims:
+                num_channels = load_dims
+                PC = PC[:load_dims, :]  # Take only the first load_dims channels
             else:
                 num_channels = PC.shape[0]
                 
@@ -640,8 +636,8 @@ def subsamplePC(PC, subsample_number, use_precomputed_eigen=False):
                 
             PC = PC.reshape(num_channels, subsample_number)
         else:
-            # Create zero array with appropriate number of channels
-            num_channels = 6 if use_precomputed_eigen else 3
+            # Create zero array with 6 channels (for eigenvalue data)
+            num_channels = load_dims
             PC = np.zeros((num_channels, subsample_number))
         
         return np.moveaxis(PC,1,0)

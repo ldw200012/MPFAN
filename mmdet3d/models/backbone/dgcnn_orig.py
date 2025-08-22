@@ -200,12 +200,11 @@ class DGCNN(nn.Module):
         # return x, feats
 
 class DGCNN_6C(nn.Module):
-    def __init__(self, dropout=0.5, emb_dims=1024, k=20, output_channels=40, use_precomputed_eigen=False):
+    def __init__(self, dropout=0.5, emb_dims=1024, k=20, output_channels=40):
         super(DGCNN_6C, self).__init__()
         print("\033[91mDGCNN_6C Created\033[0m")
 
         self.k = k
-        self.use_precomputed_eigen = use_precomputed_eigen
         
         self.bn1 = nn.BatchNorm2d(64)
         self.bn2 = nn.BatchNorm2d(64)
@@ -214,7 +213,7 @@ class DGCNN_6C(nn.Module):
         self.bn5 = nn.BatchNorm1d(emb_dims)
 
         # For 6-channel input, we need to adjust the first conv layer
-        input_channels = 12 if use_precomputed_eigen else 6  # 6 channels * 2 (feature-x, x) = 12
+        input_channels = 12  # 6 channels * 2 (feature-x, x) = 12
         self.conv1 = nn.Sequential(nn.Conv2d(input_channels, 64, kernel_size=1, bias=False),
                                    self.bn1,
                                    nn.LeakyReLU(negative_slope=0.2))
@@ -232,68 +231,43 @@ class DGCNN_6C(nn.Module):
                                    nn.LeakyReLU(negative_slope=0.2))
 
     def forward(self, xyz, backbone_list):
-        if self.use_precomputed_eigen:
-            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
-            # Input xyz has shape [B, 6, N] with eigenvalues included
-            
-            # Extract xyz coordinates for KNN computation
-            xyz_coords = xyz[:, :3, :]  # [B, 3, N]
-            
-            batch_size = xyz.size(0)
-            
-            # Use custom graph feature function for 6-channel data
-            x = get_graph_feature_6c(xyz_coords, xyz, k=self.k)
-            x = self.conv1(x)
-            x1 = x.max(dim=-1, keepdim=False)[0]
+        # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
+        # Input xyz has shape [B, 6, N] with eigenvalues included
+        
+        # Extract xyz coordinates for KNN computation
+        xyz_coords = xyz[:, :3, :]  # [B, 3, N]
+        
+        batch_size = xyz.size(0)
+        
+        # Use custom graph feature function for 6-channel data
+        x = get_graph_feature_6c(xyz_coords, xyz, k=self.k)
+        x = self.conv1(x)
+        x1 = x.max(dim=-1, keepdim=False)[0]
 
-            x = get_graph_feature(x1, k=self.k)
-            x = self.conv2(x)
-            x2 = x.max(dim=-1, keepdim=False)[0]
+        x = get_graph_feature(x1, k=self.k)
+        x = self.conv2(x)
+        x2 = x.max(dim=-1, keepdim=False)[0]
 
-            x = get_graph_feature(x2, k=self.k)
-            x = self.conv3(x)
-            x3 = x.max(dim=-1, keepdim=False)[0]
+        x = get_graph_feature(x2, k=self.k)
+        x = self.conv3(x)
+        x3 = x.max(dim=-1, keepdim=False)[0]
 
-            x = get_graph_feature(x3, k=self.k)
-            x = self.conv4(x)
-            x4 = x.max(dim=-1, keepdim=False)[0]
+        x = get_graph_feature(x3, k=self.k)
+        x = self.conv4(x)
+        x4 = x.max(dim=-1, keepdim=False)[0]
 
-            x = torch.cat((x1, x2, x3, x4), dim=1)
-            feats = self.conv5(x)
+        x = torch.cat((x1, x2, x3, x4), dim=1)
+        feats = self.conv5(x)
 
-            # Return only 3D coordinates for attention layers
-            return xyz_coords, feats
-        else:
-            # Original 3-channel behavior
-            batch_size = xyz.size(0)
-            x = get_graph_feature(xyz, k=self.k)
-            x = self.conv1(x)
-            x1 = x.max(dim=-1, keepdim=False)[0]
-
-            x = get_graph_feature(x1, k=self.k)
-            x = self.conv2(x)
-            x2 = x.max(dim=-1, keepdim=False)[0]
-
-            x = get_graph_feature(x2, k=self.k)
-            x = self.conv3(x)
-            x3 = x.max(dim=-1, keepdim=False)[0]
-
-            x = get_graph_feature(x3, k=self.k)
-            x = self.conv4(x)
-            x4 = x.max(dim=-1, keepdim=False)[0]
-
-            x = torch.cat((x1, x2, x3, x4), dim=1)
-            feats = self.conv5(x)
-
-            return xyz, feats
+        # Return only 3D coordinates for attention layers
+        return xyz_coords, feats
     
 class ED_DGCNN(nn.Module):
-    def __init__(self,dropout=0.5,emb_dims=1024, k=20, output_channels=40, ED_nsample=10, ED_conv_out=8, use_precomputed_eigen=False):
+    def __init__(self,dropout=0.5,emb_dims=1024, k=20, output_channels=40, ED_conv_out=8):
         super(ED_DGCNN, self).__init__()
         print("\033[91mED_DGCNN Created\033[0m")
 
         self.k = k
-        self.use_precomputed_eigen = use_precomputed_eigen
         self.bn1 = nn.BatchNorm2d(64)
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
@@ -316,15 +290,12 @@ class ED_DGCNN(nn.Module):
                                    self.bn5,
                                    nn.LeakyReLU(negative_slope=0.2))
 
-        # Eigen ###############################################################################################################
-        self.ED_nsample = ED_nsample
         self.ED_conv_out = ED_conv_out
         self.sub3_ED = nn.Sequential(
                             nn.Linear(3, ED_conv_out),
                             nn.ReLU(),
                             nn.Linear(ED_conv_out, ED_conv_out))
         
-        # Final ###############################################################################################################
         self.conv_final = nn.Conv1d(emb_dims + ED_conv_out, emb_dims, 1)
         self.bn_final = nn.BatchNorm1d(emb_dims)
 
@@ -334,7 +305,7 @@ class ED_DGCNN(nn.Module):
         return xyz, features
 
     def forward(self, xyz, backbone_list):
-        print("XYZ SHAPE: ", xyz.shape) # [B, C, N]
+        # print("XYZ SHAPE: ", xyz.shape) # [B, C, N]
 
         xyz, eigenvalues = self._break_up_pc(xyz.permute(0,2,1))
         xyz_permuted = xyz.permute(0,2,1)
@@ -359,15 +330,6 @@ class ED_DGCNN(nn.Module):
         x = torch.cat((x1, x2, x3, x4), dim=1)
 
         feats = self.conv5(x)
-
-        if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
 
         eigen_feature = self.sub3_ED(eigenvalues)
 

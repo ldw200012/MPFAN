@@ -25,12 +25,11 @@ class SPoTr(nn.Module):
         return data, f
 
 class SPoTr_6C(nn.Module):
-    def __init__(self, use_precomputed_eigen=False):
+    def __init__(self):
         super(SPoTr_6C, self).__init__()
         print("\033[91mSPoTr_6C Created\033[0m")
         
-        in_channels = 6 if use_precomputed_eigen else 3
-        self.use_precomputed_eigen = use_precomputed_eigen
+        in_channels = 6
         
         self.encoder = SPoTrEncoder(blocks=[1,5,5,5,5], strides=[1,3,3,3,3],
                                     width=64, in_channels=in_channels, expansion=4, radius=0.1, nsample=32, gamma=16, num_gp=16, tau_delta=0.5,
@@ -41,29 +40,19 @@ class SPoTr_6C(nn.Module):
                                     decoder_layers=2, decoder_stages=4, in_channels=in_channels)
 
     def forward(self, data, numpoints):
-        if self.use_precomputed_eigen:
-            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
-            # Input data already has shape [B, 6, N] with eigenvalues included
-            p, f = self.encoder.forward_seg_feat(data)
-            f = self.decoder(p, f).squeeze(-1)
-            
-            # Return only 3D coordinates for attention layers
-            p_3d = p[:, :3, :]  # Extract only x, y, z coordinates
-            return p_3d, f
-        else:
-            # Original 3-channel behavior
-            p, f = self.encoder.forward_seg_feat(data)
-            f = self.decoder(p, f).squeeze(-1)
-            
-            return data, f
+        p, f = self.encoder.forward_seg_feat(data)
+        f = self.decoder(p, f).squeeze(-1)
+        
+        # Return only 3D coordinates for attention layers
+        p_3d = p[:, :3, :]  # Extract only x, y, z coordinates
+        return p_3d, f
     
 class ED_SPoTr(nn.Module):
-    def __init__(self, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
+    def __init__(self, ED_conv_out=4):
         super(ED_SPoTr, self).__init__()
         print("\033[91mED_SPoTr Created\033[0m")
         
         in_channels = 3
-        self.use_precomputed_eigen = use_precomputed_eigen
         self.encoder = SPoTrEncoder(blocks=[1,5,5,5,5], strides=[1,3,3,3,3],
                                     width=64, in_channels=in_channels, expansion=4, radius=0.1, nsample=32, gamma=16, num_gp=16, tau_delta=0.5,
                                     aggr_args={'feature_type':'dp_df', 'reduction':'max'}, group_args={'NAME':'ballquery', 'normalize_dp':True}, conv_args={'order':'conv-norm-act'},
@@ -73,7 +62,6 @@ class ED_SPoTr(nn.Module):
                                     decoder_layers=2, decoder_stages=4, in_channels=in_channels)
         
         # Eigen ###############################################################################################################
-        self.ED_nsample = ED_nsample
         self.ED_conv_out = ED_conv_out
         self.sub3_ED = nn.Sequential(
                             nn.Linear(3, ED_conv_out),
@@ -97,14 +85,6 @@ class ED_SPoTr(nn.Module):
         p, f = self.encoder.forward_seg_feat(xyz)
         f = self.decoder(p, f).squeeze(-1)
 
-        if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
-            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################
