@@ -85,6 +85,115 @@ class PointTransformerBackbone(nn.Module):
         out2 = self.cov_final(l_features[0])
 
         return out1, out2  # [B, N, 3], [B, conv_out=32, N]
+
+class PointTransformerBackbone_6C(nn.Module):
+
+    def __init__(self, input_channels=6, use_xyz=True, conv_out=32, mul=1, radius=[0.3,0.5,0.7], nsample=[32,48,48], use_precomputed_eigen=False):
+        super(PointTransformerBackbone_6C, self).__init__()
+        print("\033[91mPointTransformerBackbone_6C Created\033[0m")
+
+        k = ()
+        mul = mul
+        sa1 = 32 * mul
+        sa2 = 64 * mul
+        sa3 = 128 * mul
+        
+        self.use_precomputed_eigen = use_precomputed_eigen
+        # Adjust input channels based on whether using pre-computed eigenvalues
+        actual_input_channels = 6 if use_precomputed_eigen else input_channels
+
+        self.SA_modules = nn.ModuleList()
+        self.SA_modules.append(
+            PointNetSetAbstractionEdgeSA(
+                npoint=None,
+                radius=radius[0],
+                nsample=nsample[0],
+                mlp=[actual_input_channels, sa1, sa1, sa1],
+                sampling="FPS",
+                use_xyz=use_xyz,
+                use_knn=True
+            )
+        )
+        self.SA_modules.append(
+            PointNetSetAbstractionEdgeSA(
+                npoint=None,
+                radius=radius[1],
+                nsample=nsample[1],
+                mlp=[sa2, sa2, sa2, sa2],
+                sampling="FPS",
+                use_xyz=use_xyz,
+                use_knn=True
+            )
+        )
+        self.SA_modules.append(
+            PointNetSetAbstractionEdgeSA(
+                npoint=None,
+                radius=radius[2],
+                nsample=nsample[2],
+                mlp=[sa3, sa3, sa3, sa3],
+                sampling="FPS",
+                use_xyz=use_xyz,
+                use_knn=True
+            )
+        )
+
+        self.FP_modules = nn.ModuleList()
+        self.FP_modules.append(PointNetFeaturePropagationSA(mlp=[67,sa1,sa1], mlp_inte=[sa2, 3, sa2, sa2, sa1]))
+        self.FP_modules.append(PointNetFeaturePropagationSA(mlp=[160,sa3,sa2], mlp_inte=[sa3, sa1, sa3, sa2, sa2]))    # 160=128+32
+        self.FP_modules.append(PointNetFeaturePropagationSA(mlp=[192,sa3,sa3], mlp_inte=[sa3, sa2, sa3, sa2, sa3]))  # 192=128+64
+
+        self.cov_final = nn.Conv1d(sa1, conv_out, kernel_size=1)
+
+    def _break_up_pc(self, pc):
+        if self.use_precomputed_eigen:
+            # For 6-channel data, first 3 are xyz, last 3 are eigenvalues
+            xyz = pc[..., 0:3].contiguous()
+            features = pc[..., 3:].transpose(1, 2).contiguous()  # eigenvalues as features
+        else:
+            xyz = pc[..., 0:3].contiguous()
+            features = pc[..., 3:].transpose(1, 2).contiguous() if pc.size(-1) > 3 else None
+        return xyz, features
+
+    def forward(self, pointcloud, numpoints):
+        if self.use_precomputed_eigen:
+            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
+            # Input pointcloud already has shape [B, N, 6] with eigenvalues included
+            xyz, features = self._break_up_pc(pointcloud)
+
+            l_xyz, l_features = [xyz], [features]
+
+            for i in range(len(self.SA_modules)):
+                li_xyz, li_features = self.SA_modules[i](l_xyz[i], l_features[i], numpoints[i])
+                l_xyz.append(li_xyz)
+                l_features.append(li_features)
+            
+            l_features[0] = xyz.transpose(1, 2).contiguous()
+            for i in [2, 1, 0]:
+                l_features[i] = self.FP_modules[i](l_xyz[i], l_xyz[i+1], l_features[i], l_features[i+1])
+
+            out1 = l_xyz[0]
+            out2 = self.cov_final(l_features[0])
+
+            return out1, out2  # [B, N, 3], [B, conv_out=32, N]
+        else:
+            # Original 3-channel behavior
+            xyz, features = self._break_up_pc(pointcloud)
+
+            l_xyz, l_features = [xyz], [features]
+
+            for i in range(len(self.SA_modules)):
+                li_xyz, li_features = self.SA_modules[i](l_xyz[i], l_features[i], numpoints[i])
+                l_xyz.append(li_xyz)
+                l_features.append(li_features)
+            
+            l_features[0] = xyz.transpose(1, 2).contiguous()
+            for i in [2, 1, 0]:
+                l_features[i] = self.FP_modules[i](l_xyz[i], l_xyz[i+1], l_features[i], l_features[i+1])
+
+            out1 = l_xyz[0]
+            out2 = self.cov_final(l_features[0])
+
+            return out1, out2  # [B, N, 3], [B, conv_out=32, N]
     
 class ED_PointTransformerBackbone(nn.Module):
 

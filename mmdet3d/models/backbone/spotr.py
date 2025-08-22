@@ -23,6 +23,39 @@ class SPoTr(nn.Module):
         f = self.decoder(p, f).squeeze(-1)
         
         return data, f
+
+class SPoTr_6C(nn.Module):
+    def __init__(self, use_precomputed_eigen=False):
+        super(SPoTr_6C, self).__init__()
+        print("\033[91mSPoTr_6C Created\033[0m")
+        
+        in_channels = 6 if use_precomputed_eigen else 3
+        self.use_precomputed_eigen = use_precomputed_eigen
+        
+        self.encoder = SPoTrEncoder(blocks=[1,5,5,5,5], strides=[1,3,3,3,3],
+                                    width=64, in_channels=in_channels, expansion=4, radius=0.1, nsample=32, gamma=16, num_gp=16, tau_delta=0.5,
+                                    aggr_args={'feature_type':'dp_df', 'reduction':'max'}, group_args={'NAME':'ballquery', 'normalize_dp':True}, conv_args={'order':'conv-norm-act'},
+                                    act_args={'act':'relu'}, norm_arg={'norm':'bn'})
+        
+        self.decoder = SPoTrDecoder(encoder_channel_list=self.encoder.channel_list if hasattr(self.encoder,'channel_list') else None,
+                                    decoder_layers=2, decoder_stages=4, in_channels=in_channels)
+
+    def forward(self, data, numpoints):
+        if self.use_precomputed_eigen:
+            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
+            # Input data already has shape [B, 6, N] with eigenvalues included
+            p, f = self.encoder.forward_seg_feat(data)
+            f = self.decoder(p, f).squeeze(-1)
+            
+            # Return only 3D coordinates for attention layers
+            p_3d = p[:, :3, :]  # Extract only x, y, z coordinates
+            return p_3d, f
+        else:
+            # Original 3-channel behavior
+            p, f = self.encoder.forward_seg_feat(data)
+            f = self.decoder(p, f).squeeze(-1)
+            
+            return data, f
     
 class ED_SPoTr(nn.Module):
     def __init__(self, ED_nsample=10, ED_conv_out=4):

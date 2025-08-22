@@ -97,10 +97,10 @@ data = dict(
                                 min_points=128,
                                 load_scene=True,
                                 load_objects=True,
-                                load_feats=['xyz'],
-                                load_dims=[3],
-                                # load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
-                                # load_dims=[6],
+                                # load_feats=['xyz'],
+                                # load_dims=[3],
+                                load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
+                                load_dims=[6],
                                 )  # Changed from [3] to [6]
             ),
     val=dict(type='ReIDDatasetNuscenesFPValEven',
@@ -127,10 +127,10 @@ data = dict(
                                 min_points=128,
                                 load_scene=True,
                                 load_objects=True,
-                                load_feats=['xyz'],
-                                load_dims=[3],
-                                # load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
-                                # load_dims=[6],
+                                # load_feats=['xyz'],
+                                # load_dims=[3],
+                                load_feats=['xyz_eigen'],  # Changed from 'xyz' to 'xyz_eigen'
+                                load_dims=[6],
                                 ) # Changed from [3] to [6]
             )
 )

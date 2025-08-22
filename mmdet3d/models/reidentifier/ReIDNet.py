@@ -11,11 +11,11 @@ from mmdet3d.models.layers.lanegcn_nets import PostRes,LinearRes
 from mmdet3d.models.layers.pointattention import PointCloudAttention
 from mmdet3d.models.backbone.pointnet import PointNet, PointNet_6C, ED_PointNet
 from mmdet3d.models.backbone.pointnext import PointNeXt, ED_PointNeXt
-from mmdet3d.models.backbone.dgcnn_orig import DGCNN, ED_DGCNN
-from mmdet3d.models.backbone.deepgcn import DeepGCN, ED_DeepGCN
-from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, ED_PointTransformerBackbone
-from mmdet3d.models.backbone.spotr import SPoTr, ED_SPoTr
-from mmdet3d.models.backbone.dualreidnet import DualReID, ED_DualReID
+from mmdet3d.models.backbone.dgcnn_orig import DGCNN, DGCNN_6C, ED_DGCNN
+from mmdet3d.models.backbone.deepgcn import DeepGCN, DeepGCN_6C, ED_DeepGCN
+from mmdet3d.models.backbone.pointtransformer_backbone import PointTransformerBackbone, PointTransformerBackbone_6C, ED_PointTransformerBackbone
+from mmdet3d.models.backbone.spotr import SPoTr, SPoTr_6C, ED_SPoTr
+from mmdet3d.models.backbone.dualreidnet import DualReID, DualReID_6C, ED_DualReID
 from mmdet3d.models.layers.attention import cross_attention, local_self_attention, cross_lin_attn
 from sklearn.decomposition import PCA
 from scipy.spatial.distance import cosine
@@ -40,11 +40,11 @@ module_obj = {
 
     'PointNet':PointNet, 'PointNet_6C':PointNet_6C,'ED_PointNet':ED_PointNet,
     'PointNeXt':PointNeXt, 'ED_PointNeXt':ED_PointNeXt,
-    'DGCNN':DGCNN, 'ED_DGCNN':ED_DGCNN,
-    'DeepGCN':DeepGCN, 'ED_DeepGCN':ED_DeepGCN,
-    'PointTransformerBackbone':PointTransformerBackbone, 'ED_PointTransformerBackbone':ED_PointTransformerBackbone,
-    'SPoTr':SPoTr, 'ED_SPoTr':ED_SPoTr,
-    'DualReID':DualReID, 'ED_DualReID':ED_DualReID,
+    'DGCNN':DGCNN, 'DGCNN_6C':DGCNN_6C, 'ED_DGCNN':ED_DGCNN,
+    'DeepGCN':DeepGCN, 'DeepGCN_6C':DeepGCN_6C, 'ED_DeepGCN':ED_DeepGCN,
+    'PointTransformerBackbone':PointTransformerBackbone, 'PointTransformerBackbone_6C':PointTransformerBackbone_6C, 'ED_PointTransformerBackbone':ED_PointTransformerBackbone,
+    'SPoTr':SPoTr, 'SPoTr_6C':SPoTr_6C, 'ED_SPoTr':ED_SPoTr,
+    'DualReID':DualReID, 'DualReID_6C':DualReID_6C, 'ED_DualReID':ED_DualReID,
 }
 
 def build_module(cfg):

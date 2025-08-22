@@ -56,6 +56,43 @@ def get_graph_feature(x, k=20, idx=None):
     return feature
 
 
+def get_graph_feature_6c(xyz, features, k=20, idx=None):
+    """
+    Custom graph feature function for 6-channel data.
+    Uses xyz coordinates for KNN but processes full 6-channel features.
+    
+    Args:
+        xyz: (B, 3, N) - xyz coordinates for KNN computation
+        features: (B, 6, N) - full 6-channel features
+        k: number of neighbors
+        idx: pre-computed neighbor indices
+    """
+    batch_size = xyz.size(0)
+    num_points = xyz.size(2)
+    
+    if idx is None:
+        idx = knn(xyz, k=k)   # (batch_size, num_points, k)
+    
+    device = torch.device('cuda')
+    idx_base = torch.arange(0, batch_size, device=device).view(-1, 1, 1)*num_points
+    idx = idx + idx_base
+    idx = idx.view(-1)
+ 
+    # Process full 6-channel features
+    features_trans = features.transpose(2, 1).contiguous()  # (B, N, 6)
+    grouped_features = features_trans.view(batch_size*num_points, -1)[idx, :]
+    grouped_features = grouped_features.view(batch_size, num_points, k, -1)  # (B, N, k, 6)
+    
+    # Repeat center features
+    center_features = features_trans.view(batch_size, num_points, 1, -1).repeat(1, 1, k, 1)  # (B, N, k, 6)
+    
+    # Concatenate relative and absolute features
+    graph_features = torch.cat((grouped_features - center_features, center_features), dim=3)  # (B, N, k, 12)
+    graph_features = graph_features.permute(0, 3, 1, 2).contiguous()  # (B, 12, N, k)
+  
+    return graph_features
+
+
 class PointNet(nn.Module):
     def __init__(self, args, output_channels=40):
         super(PointNet, self).__init__()
@@ -161,6 +198,94 @@ class DGCNN(nn.Module):
         # x = self.dp2(x)
         # x = self.linear3(x)
         # return x, feats
+
+class DGCNN_6C(nn.Module):
+    def __init__(self, dropout=0.5, emb_dims=1024, k=20, output_channels=40, use_precomputed_eigen=False):
+        super(DGCNN_6C, self).__init__()
+        print("\033[91mDGCNN_6C Created\033[0m")
+
+        self.k = k
+        self.use_precomputed_eigen = use_precomputed_eigen
+        
+        self.bn1 = nn.BatchNorm2d(64)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.bn4 = nn.BatchNorm2d(256)
+        self.bn5 = nn.BatchNorm1d(emb_dims)
+
+        # For 6-channel input, we need to adjust the first conv layer
+        input_channels = 12 if use_precomputed_eigen else 6  # 6 channels * 2 (feature-x, x) = 12
+        self.conv1 = nn.Sequential(nn.Conv2d(input_channels, 64, kernel_size=1, bias=False),
+                                   self.bn1,
+                                   nn.LeakyReLU(negative_slope=0.2))
+        self.conv2 = nn.Sequential(nn.Conv2d(64*2, 64, kernel_size=1, bias=False),
+                                   self.bn2,
+                                   nn.LeakyReLU(negative_slope=0.2))
+        self.conv3 = nn.Sequential(nn.Conv2d(64*2, 128, kernel_size=1, bias=False),
+                                   self.bn3,
+                                   nn.LeakyReLU(negative_slope=0.2))
+        self.conv4 = nn.Sequential(nn.Conv2d(128*2, 256, kernel_size=1, bias=False),
+                                   self.bn4,
+                                   nn.LeakyReLU(negative_slope=0.2))
+        self.conv5 = nn.Sequential(nn.Conv1d(512, emb_dims, kernel_size=1, bias=False),
+                                   self.bn5,
+                                   nn.LeakyReLU(negative_slope=0.2))
+
+    def forward(self, xyz, backbone_list):
+        if self.use_precomputed_eigen:
+            # Use pre-computed 6-channel data (x, y, z, eig1, eig2, eig3)
+            # Input xyz has shape [B, 6, N] with eigenvalues included
+            
+            # Extract xyz coordinates for KNN computation
+            xyz_coords = xyz[:, :3, :]  # [B, 3, N]
+            
+            batch_size = xyz.size(0)
+            
+            # Use custom graph feature function for 6-channel data
+            x = get_graph_feature_6c(xyz_coords, xyz, k=self.k)
+            x = self.conv1(x)
+            x1 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x1, k=self.k)
+            x = self.conv2(x)
+            x2 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x2, k=self.k)
+            x = self.conv3(x)
+            x3 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x3, k=self.k)
+            x = self.conv4(x)
+            x4 = x.max(dim=-1, keepdim=False)[0]
+
+            x = torch.cat((x1, x2, x3, x4), dim=1)
+            feats = self.conv5(x)
+
+            # Return only 3D coordinates for attention layers
+            return xyz_coords, feats
+        else:
+            # Original 3-channel behavior
+            batch_size = xyz.size(0)
+            x = get_graph_feature(xyz, k=self.k)
+            x = self.conv1(x)
+            x1 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x1, k=self.k)
+            x = self.conv2(x)
+            x2 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x2, k=self.k)
+            x = self.conv3(x)
+            x3 = x.max(dim=-1, keepdim=False)[0]
+
+            x = get_graph_feature(x3, k=self.k)
+            x = self.conv4(x)
+            x4 = x.max(dim=-1, keepdim=False)[0]
+
+            x = torch.cat((x1, x2, x3, x4), dim=1)
+            feats = self.conv5(x)
+
+            return xyz, feats
     
 class ED_DGCNN(nn.Module):
     def __init__(self,dropout=0.5,emb_dims=1024, k=20, output_channels=40, ED_nsample=10, ED_conv_out=8):

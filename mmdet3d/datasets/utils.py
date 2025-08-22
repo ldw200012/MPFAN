@@ -602,7 +602,15 @@ def get_knn(coi_to_size, k_num=200):
             
     return obj_id_to_knn
 
-def subsamplePC(PC, subsample_number):
+def subsamplePC(PC, subsample_number, use_precomputed_eigen=False):
+    """
+    Subsample point cloud data.
+    
+    Args:
+        PC: Point cloud data with shape [channels, num_points]
+        subsample_number: Number of points to subsample to
+        use_precomputed_eigen: Whether using pre-computed eigenvalues (6-channel data)
+    """
 
     subsample_option = 1
     # 1: original random
@@ -614,18 +622,27 @@ def subsamplePC(PC, subsample_number):
         if subsample_number == 0:
             pass
         elif PC.shape[1] > 2:
-            if PC.shape[0] > 3:
+            # Handle different channel counts based on data type
+            if use_precomputed_eigen and PC.shape[0] == 6:
+                # Keep all 6 channels for pre-computed eigenvalue data
+                num_channels = 6
+            elif PC.shape[0] > 3:
+                # For other cases, take only first 3 channels (original behavior)
                 PC = PC[0:3, :]
-                # print("HERE")
+                num_channels = 3
+            else:
+                num_channels = PC.shape[0]
+                
             if PC.shape[1] != subsample_number:
                 # subsample
                 new_pts_idx = np.random.randint(low=0, high=PC.shape[1], size=subsample_number, dtype=np.int64)
                 PC = PC[:, new_pts_idx]
-                # print("TTTTTHERE")
-            PC = PC.reshape(3, subsample_number)
-            # print("YOppppp")
+                
+            PC = PC.reshape(num_channels, subsample_number)
         else:
-            PC = np.zeros((3, subsample_number))
+            # Create zero array with appropriate number of channels
+            num_channels = 6 if use_precomputed_eigen else 3
+            PC = np.zeros((num_channels, subsample_number))
         
         return np.moveaxis(PC,1,0)
     ################################################################# OPTION 2 ###################################

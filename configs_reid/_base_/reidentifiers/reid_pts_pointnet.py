@@ -26,7 +26,7 @@ model = dict(
     use_dgcnn=True,
 
     # backbone=dict(type='PointNet',k=40,normal_channel=False),
-    backbone=dict(type='ED_PointNet', ED_nsample=10, ED_conv_out=4,normal_channel=False),
+    backbone=dict(type='ED_PointNet', ED_nsample=10, ED_conv_out=4,normal_channel=False, use_precomputed_eigen=True),
     # backbone=dict(type='PointNet_6C',k=40, ED_nsample=10, normal_channel=False, use_precomputed_eigen=True),
 
     cls_head=[dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=ng),

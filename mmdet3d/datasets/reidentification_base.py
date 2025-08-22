@@ -455,7 +455,7 @@ class ReIDDatasetBase(object):
         # print("\033[91m[return_item]subsample mode: \033[0m", self.subsample_mode)
 
         if self.subsample_mode == "random":
-            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse)
+            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.use_precomputed_eigen), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.use_precomputed_eigen)
         elif self.subsample_mode == "fps":
             s1 = torch.tensor(fps_or_interpolate(s1, self.subsample_sparse))
             s2 = torch.tensor(fps_or_interpolate(s2, self.subsample_sparse))
@@ -490,7 +490,7 @@ class ReIDDatasetBase(object):
         # # s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse)
 
         if self.val_subsample_mode == "random":
-            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse)
+            s1,s2 = subsamplePC(np.moveaxis(s1,0,1),self.subsample_sparse, self.use_precomputed_eigen), subsamplePC(np.moveaxis(s2,0,1),self.subsample_sparse, self.use_precomputed_eigen)
         elif self.val_subsample_mode == "fps":
             s1 = torch.tensor(fps_or_interpolate(s1, self.subsample_sparse))
             s2 = torch.tensor(fps_or_interpolate(s2, self.subsample_sparse))

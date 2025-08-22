@@ -28,12 +28,14 @@ class PointNeXt(nn.Module):
             f = self.decoder(p, f).squeeze(-1)
 
         return data, f
-    
+
 class ED_PointNeXt(nn.Module):
-    def __init__(self, ED_nsample=10, ED_conv_out=4):
+    def __init__(self, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
         super(ED_PointNeXt, self).__init__()
-        print("\033[91mPointNext Created\033[0m")
+        print("\033[91mED_PointNext Created\033[0m")
         
+        self.use_precomputed_eigen = use_precomputed_eigen
+
         torch.cuda.synchronize()
 
         in_channels = 3
@@ -58,21 +60,32 @@ class ED_PointNeXt(nn.Module):
         self.conv_final = nn.Conv1d(64 + ED_conv_out, 64, 1)
         self.bn_final = nn.BatchNorm1d(64)
 
+    def _break_up_pc(self, pc):
+        xyz = pc[..., 0:3].contiguous()
+        features = pc[..., 3:].contiguous()
+        return xyz, features
+
     def forward(self, data, numpoints):
-        p, f = self.encoder.forward_seg_feat(data)
+        
+        xyz_data, eigenvalues = self._break_up_pc(data)
+
+        p, f = self.encoder.forward_seg_feat(xyz_data)
         f = self.decoder(p, f).squeeze(-1)
 
-        # Eigen ###############################################################################################################
-        group_idx = knn_point(nsample=self.ED_nsample, xyz=data, new_xyz=data)
-        batch_indices = torch.arange(data.shape[0]).view(-1, 1, 1).expand(-1, data.shape[1], self.ED_nsample)
-        neighborhood_points = data[batch_indices, group_idx]  # (B, N, k, 3)
-        centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-        cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-        eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+        xyz = xyz_data.permute(0,2,1)
+        if not self.use_precomputed_eigen:
+            # Eigen ###############################################################################################################
+            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
+            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
+            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
+            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
+            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
+            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################
         z = torch.cat((f, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
 
-        return data, z
+        return xyz_data, z

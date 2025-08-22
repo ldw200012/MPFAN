@@ -223,6 +223,8 @@ class ObjectLoaderSparseBase(Loader):
             path = osp.join(info['path'], frame_idx)
             #self.obj_id_to_nums[info['id']][frame_idx])
             for name, dim in zip(self.load_feats, self.load_dims):
+                # print("NAME: ", name)
+                # print("DIM: ", dim)
                 # Handle special naming for eigenvalue files
                 if name == 'xyz_eigen':
                     # For eigenvalue files, include the KNN sample size in filename
@@ -232,12 +234,15 @@ class ObjectLoaderSparseBase(Loader):
                 
                 num_pts = int(os.stat(feats_file).st_size // (4 * dim))
                 num_pts -= int(num_pts * self.load_fraction)
-                points.append(np.fromfile(feats_file,
+                loaded_data = np.fromfile(feats_file,
                                           offset=4 * dim * num_pts,
-                                          dtype=np.float32).reshape(-1, dim))
+                                          dtype=np.float32).reshape(-1, dim)
+                points.append(loaded_data)
         else:
             raise ValueError(f'info must have either path or pts_data')
-        return np.concatenate(points, axis=-1)
+        
+        result = np.concatenate(points, axis=-1)
+        return result
 
     def load_image(self, info, frame_idx):
         if 'path' in info:
