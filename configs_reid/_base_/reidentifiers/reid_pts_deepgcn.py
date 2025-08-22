@@ -22,7 +22,8 @@ model = dict(
     use_dgcnn=False,
     
     # backbone=dict(type='DeepGCN', emb_dims=output_feat_size),
-    backbone=dict(type='DeepGCN_6C', emb_dims=output_feat_size, use_precomputed_eigen=True),
+    backbone=dict(type='ED_DeepGCN', emb_dims=output_feat_size, use_precomputed_eigen=True),
+    # backbone=dict(type='DeepGCN_6C', emb_dims=output_feat_size, use_precomputed_eigen=True),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),
                 dict(type='Linear', in_features=hidden_size_match, out_features=1)],

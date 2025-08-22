@@ -236,15 +236,18 @@ class ED_PointNet(nn.Module):
         return xyz, features
 
     def forward(self, x, backbone_list):
-        x = x.permute(0,2,1)
+        # print("X SHAPE: ", x.shape) # [B, C, N]
+        
+        xyz, eigenvalues = self._break_up_pc(x.permute(0,2,1))
+        xyz_permuted = xyz.permute(0,2,1)
+        # print("XYZ SHAPE: ", xyz.shape) # [B, N, 3]
+        # print("EIGENVALUES SHAPE: ", eigenvalues.shape) # [B, N, 3]
 
-        xyz, eigenvalues = self._break_up_pc(x)
-        xyz = xyz.permute(0,2,1)
-
-        out, feat = self.feat(xyz, self.use_hybrid)
+        out, feat = self.feat(xyz_permuted, self.use_hybrid)
+        # print("OUT SHAPE: ", out.shape) # [B, 3, N]
+        # print("FEAT SHAPE: ", feat.shape) # [B, 1024, N]
 
         if not self.use_precomputed_eigen:
-            # Eigen ###############################################################################################################
             group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
             batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
             neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)

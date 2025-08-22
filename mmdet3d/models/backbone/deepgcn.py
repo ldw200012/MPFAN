@@ -53,13 +53,14 @@ class DeepGCN_6C(nn.Module):
             return data, f
 
 class ED_DeepGCN(nn.Module):
-    def __init__(self, emb_dims=1024, ED_nsample=10, ED_conv_out=4):
+    def __init__(self, emb_dims=1024, ED_nsample=10, ED_conv_out=4, use_precomputed_eigen=False):
         super(ED_DeepGCN, self).__init__()
         print("\033[91mED_DeepGCN Created\033[0m")
         
         torch.cuda.synchronize()
 
         in_channels = 3
+        self.use_precomputed_eigen = use_precomputed_eigen
         self.encoder = DeepGCNEncoder(in_channels=in_channels, channels=64, emb_dims=emb_dims, n_blocks=14, # n_blocks=14
                                       conv='edge', block='no', k=16, epsilon=0.2, #block='res'
                                       use_stochastic=True, use_dilation=True,
@@ -77,21 +78,32 @@ class ED_DeepGCN(nn.Module):
         # Final ###############################################################################################################
         self.conv_final = nn.Conv1d(emb_dims + ED_conv_out, emb_dims, 1)
         self.bn_final = nn.BatchNorm1d(emb_dims)
+
+    def _break_up_pc(self, pc):
+        xyz = pc[..., 0:3].contiguous()
+        features = pc[..., 3:].contiguous()
+        return xyz, features
                                       
     def forward(self, data, numpoints):
-        _, f = self.encoder.forward_seg_feat(data)
+        print("DATA SHAPE: ", data.shape) # [B, N, C]
 
-        # Eigen ###############################################################################################################
-        group_idx = knn_point(nsample=self.ED_nsample, xyz=data, new_xyz=data)
-        batch_indices = torch.arange(data.shape[0]).view(-1, 1, 1).expand(-1, data.shape[1], self.ED_nsample)
-        neighborhood_points = data[batch_indices, group_idx]  # (B, N, k, 3)
-        centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-        cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-        eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+        xyz, eigenvalues = self._break_up_pc(data)
+
+        _, f = self.encoder.forward_seg_feat(xyz)
+
+        if not self.use_precomputed_eigen:
+            # Eigen ###############################################################################################################
+            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
+            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
+            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
+            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
+            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
+            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################
         z = torch.cat((f, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
         
-        return data, z
+        return xyz, z

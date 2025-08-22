@@ -197,7 +197,7 @@ class PointTransformerBackbone_6C(nn.Module):
     
 class ED_PointTransformerBackbone(nn.Module):
 
-    def __init__(self, input_channels=3, use_xyz=True, conv_out=32, mul=1, radius=[0.3,0.5,0.7], nsample=[32,48,48], ED_nsample=10, ED_conv_out=8):
+    def __init__(self, input_channels=3, use_xyz=True, conv_out=32, mul=1, radius=[0.3,0.5,0.7], nsample=[32,48,48], ED_nsample=10, ED_conv_out=8, use_precomputed_eigen=False):
         super(ED_PointTransformerBackbone, self).__init__()
         print("\033[91mEDPointTransformer Created\033[0m")
 
@@ -206,6 +206,8 @@ class ED_PointTransformerBackbone(nn.Module):
         sa1 = 32 * mul
         sa2 = 64 * mul
         sa3 = 128 * mul
+
+        self.use_precomputed_eigen = use_precomputed_eigen
 
         self.SA_modules = nn.ModuleList()
         self.SA_modules.append(
@@ -263,12 +265,15 @@ class ED_PointTransformerBackbone(nn.Module):
 
     def _break_up_pc(self, pc):
         xyz = pc[..., 0:3].contiguous()
-        features = pc[..., 3:].transpose(1, 2).contiguous() if pc.size(-1) > 3 else None
-        return xyz, features
+        # features = pc[..., 3:].transpose(1, 2).contiguous() if pc.size(-1) > 3 else None
+        features = None
+        eigenvalues = pc[..., 3:].contiguous()
+        return xyz, features, eigenvalues
 
     def forward(self, pointcloud, numpoints):
+        # print("POINTCLOUD SHAPE: ", pointcloud.shape) # [B, N, C]
 
-        xyz, features = self._break_up_pc(pointcloud)
+        xyz, features, eigenvalues = self._break_up_pc(pointcloud)
 
         l_xyz, l_features = [xyz], [features]
 
@@ -284,13 +289,15 @@ class ED_PointTransformerBackbone(nn.Module):
         out1 = l_xyz[0]
         out2 = self.cov_final(l_features[0])
 
-        # Eigen ###############################################################################################################
-        group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
-        batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
-        neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
-        centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-        cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-        eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+        if not self.use_precomputed_eigen:
+            # Eigen ###############################################################################################################
+            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
+            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
+            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
+            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
+            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
+            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+            
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################

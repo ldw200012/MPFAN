@@ -288,12 +288,12 @@ class DGCNN_6C(nn.Module):
             return xyz, feats
     
 class ED_DGCNN(nn.Module):
-    def __init__(self,dropout=0.5,emb_dims=1024, k=20, output_channels=40, ED_nsample=10, ED_conv_out=8):
+    def __init__(self,dropout=0.5,emb_dims=1024, k=20, output_channels=40, ED_nsample=10, ED_conv_out=8, use_precomputed_eigen=False):
         super(ED_DGCNN, self).__init__()
         print("\033[91mED_DGCNN Created\033[0m")
 
         self.k = k
-        
+        self.use_precomputed_eigen = use_precomputed_eigen
         self.bn1 = nn.BatchNorm2d(64)
         self.bn2 = nn.BatchNorm2d(64)
         self.bn3 = nn.BatchNorm2d(128)
@@ -328,10 +328,19 @@ class ED_DGCNN(nn.Module):
         self.conv_final = nn.Conv1d(emb_dims + ED_conv_out, emb_dims, 1)
         self.bn_final = nn.BatchNorm1d(emb_dims)
 
-    def forward(self, xyz, backbone_list):
+    def _break_up_pc(self, pc):
+        xyz = pc[..., 0:3].contiguous()
+        features = pc[..., 3:].contiguous()
+        return xyz, features
 
-        batch_size = xyz.size(0)
-        x = get_graph_feature(xyz, k=self.k)
+    def forward(self, xyz, backbone_list):
+        print("XYZ SHAPE: ", xyz.shape) # [B, C, N]
+
+        xyz, eigenvalues = self._break_up_pc(xyz.permute(0,2,1))
+        xyz_permuted = xyz.permute(0,2,1)
+
+        batch_size = xyz_permuted.size(0)
+        x = get_graph_feature(xyz_permuted, k=self.k)
         x = self.conv1(x)
         x1 = x.max(dim=-1, keepdim=False)[0]
 
@@ -347,23 +356,23 @@ class ED_DGCNN(nn.Module):
         x = self.conv4(x)
         x4 = x.max(dim=-1, keepdim=False)[0]
 
-
         x = torch.cat((x1, x2, x3, x4), dim=1)
 
         feats = self.conv5(x)
 
-        # Eigen ###############################################################################################################
-        xyz_permuted = xyz.permute(0,2,1)
-        group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz_permuted, new_xyz=xyz_permuted)
-        batch_indices = torch.arange(xyz_permuted.shape[0]).view(-1, 1, 1).expand(-1, xyz_permuted.shape[1], self.ED_nsample)
-        neighborhood_points = xyz_permuted[batch_indices, group_idx]  # (B, N, k, 3)
-        centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
-        cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
-        eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+        if not self.use_precomputed_eigen:
+            # Eigen ###############################################################################################################
+            group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
+            batch_indices = torch.arange(xyz.shape[0]).view(-1, 1, 1).expand(-1, xyz.shape[1], self.ED_nsample)
+            neighborhood_points = xyz[batch_indices, group_idx]  # (B, N, k, 3)
+            centered_points = neighborhood_points - neighborhood_points.mean(dim=2, keepdim=True)
+            cov_matrices = centered_points.transpose(-2, -1).matmul(centered_points) / self.ED_nsample  # (B, N, 3, 3)
+            eigenvalues = torch.linalg.eigvalsh(cov_matrices)  # (B, N, 3)
+
         eigen_feature = self.sub3_ED(eigenvalues)
 
         # Final ###############################################################################################################
         z = torch.cat((feats, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
 
-        return xyz, z
+        return xyz_permuted, z

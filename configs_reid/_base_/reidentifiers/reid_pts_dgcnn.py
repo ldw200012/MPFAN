@@ -26,7 +26,8 @@ model = dict(
     use_dgcnn=True,
 
     # backbone=dict(type='DGCNN',dropout=0.5,emb_dims=downsample_input, k=20, output_channels=40),
-    backbone=dict(type='DGCNN_6C',dropout=0.5,emb_dims=downsample_input, k=20, output_channels=40, use_precomputed_eigen=True),
+    backbone=dict(type='ED_DGCNN',dropout=0.5,emb_dims=downsample_input, k=20, output_channels=40, use_precomputed_eigen=True),
+    # backbone=dict(type='DGCNN_6C',dropout=0.5,emb_dims=downsample_input, k=20, output_channels=40, use_precomputed_eigen=True),
 
     cls_head=[dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=ng),
               dict(type='Linear', in_features=hidden_size, out_features=num_classes)],

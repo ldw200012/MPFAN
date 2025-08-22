@@ -66,13 +66,16 @@ class ED_PointNeXt(nn.Module):
         return xyz, features
 
     def forward(self, data, numpoints):
-        
-        xyz_data, eigenvalues = self._break_up_pc(data)
+        # print("DATA SHAPE: ", data.shape) # [B, N, C]
 
-        p, f = self.encoder.forward_seg_feat(xyz_data)
+        xyz, eigenvalues = self._break_up_pc(data)
+        # print("XYZ SHAPE: ", xyz.shape) # [B, N, 3]
+        # print("EIGENVALUES SHAPE: ", eigenvalues.shape) # [B, N, 3]
+
+        p, f = self.encoder.forward_seg_feat(xyz)
         f = self.decoder(p, f).squeeze(-1)
+        # print("F SHAPE: ", f.shape)
 
-        xyz = xyz_data.permute(0,2,1)
         if not self.use_precomputed_eigen:
             # Eigen ###############################################################################################################
             group_idx = knn_point(nsample=self.ED_nsample, xyz=xyz, new_xyz=xyz)
@@ -88,4 +91,4 @@ class ED_PointNeXt(nn.Module):
         z = torch.cat((f, eigen_feature.permute(0,2,1)), dim=1)
         z = F.relu(self.bn_final(self.conv_final(z)))
 
-        return xyz_data, z
+        return xyz, z

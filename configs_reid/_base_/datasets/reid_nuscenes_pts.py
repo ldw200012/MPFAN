@@ -87,7 +87,7 @@ data = dict(
                verbose=False,
                validation_seed=0,
                use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
-               eigen_knn_size=10,  # KNN sample size used for eigenvalue computation
+               eigen_knn_size=5,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=True,
                                 version='v1.0-{}'.format(version),
@@ -117,7 +117,7 @@ data = dict(
                validation_seed=0,
                max_combinations=2,
                use_precomputed_eigen=True,  # New option to use pre-computed eigenvalues
-               eigen_knn_size=10,  # KNN sample size used for eigenvalue computation
+               eigen_knn_size=5,  # KNN sample size used for eigenvalue computation
                sparse_loader=dict(type='ObjectLoaderSparseNuscenes',
                                 train=False,
                                 version='v1.0-{}'.format(version),
