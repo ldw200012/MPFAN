@@ -1,4 +1,0 @@
-# Requirements for complexity analysis tools
-torch>=1.8.0
-numpy>=1.19.0
-mmcv>=1.3.0

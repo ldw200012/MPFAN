@@ -236,37 +236,16 @@ class ReIDNet(BaseDetector):
         assert sparse_1.shape == sparse_2.shape
         b, num_points,_ = sparse_1.shape
 
-        # if self.use_dgcnn:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
-        #     h = h.permute(0,2,1)
-        #     h = h.reshape(-1,h.shape[-1])
-        #     h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
-            
-        #     return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
-        # else:
-        #     xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
-
-        #     return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
-
         if self.use_dgcnn:
-            # xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
             xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0).permute(0,2,1),self.numpoints)
             h = h.permute(0,2,1)
             h = h.reshape(-1,h.shape[-1])
             h = self.downsample(h).reshape(2*b,num_points,-1).permute(0,2,1)
 
-            # print("\nUsing DGCNN")
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            # return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
             return xyz[:b,...].permute(0,2,1), xyz[b:,...].permute(0,2,1), h[:b,...], h[b:,...]
         else:
-            # xyz, h, f1, f2, f3 = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
             xyz, h = self.backbone(torch.cat([sparse_1,sparse_2],dim=0),self.numpoints)
 
-            # print("\nNot using DGCNN")
-            # print("F1/F2/F3 Shapes: ", f1.shape, f2.shape, f3.shape)
-            # fa1, fa2, fa3, fb1, fb2, fb3
-            # return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...], f1[:b,...], f1[b:,...], f2[:b,...], f2[b:,...], f3[:b,...], f3[b:,...]
             return xyz[:b,...], xyz[b:,...], h[:b,...], h[b:,...]
 
     def get_match_supervision(self,h1,h2,xyz1,xyz2,id_1,id_2):
@@ -461,7 +440,6 @@ class ReIDNet(BaseDetector):
 
         # Siamese Forward
         xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1,sparse_2)
-        # xyz1, xyz2, h1, h2, fa1, fb1, fa2, fb2, fa3, fb3 = self.siamese_forward(sparse_1,sparse_2)
         h_cat = torch.cat([h1,h2],dim=0)
 
         # CLS Forward
@@ -473,11 +451,6 @@ class ReIDNet(BaseDetector):
         # Match Forward
         h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
         match_preds, match_loss, (o1,o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
-
-        # print("FA1/FA2/FA3 Shapes: ", fa1.shape, ", ", fa2.shape, ", ", fa3.shape)
-        # print("FB1/FB2/FB3 Shapes: ", fb1.shape, ", ", fb2.shape, ", ", fb3.shape)
-        # FA1/FA2/FA3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
-        # FB1/FB2/FB3 Shapes:  torch.Size([256, 128, 128]) ,  torch.Size([256, 32, 128]) ,  torch.Size([256, 16, 128])
         
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')
@@ -544,119 +517,3 @@ class ReIDNet(BaseDetector):
 
     def init_weights(self):
         pass
-
-@FUSIONMODELS.register_module()
-class ReIDNet_RoT(ReIDNet):
-    def __init__(self,
-                 losses_to_use,alpha,
-                 backbone,numpoints,
-                 cls_head,match_head,shape_head,fp_head,downsample,
-                 cross_stage1,local_stage1,cross_stage2,local_stage2,
-                 triplet_margin,triplet_p,triplet_sample_num,
-                 output_feat_size,num_classes,use_o,eval_only=False,train_cfg=None,test_cfg=None, use_dgcnn=False):
-        super().__init__()
-
-    ###########################################
-    # ReID Model
-    ###########################################
-    def forward_train(self,sparse_1,sparse_2,label_1,label_2,id_1,id_2):
-        if self.eval_only:
-            exit(0)
-
-        log_vars = {}
-        losses = {}
-
-        sparse_1,sparse_2,label_1,label_2,id_1,id_2 = self.preprocess_inputs(sparse_1,sparse_2,label_1,label_2,id_1,id_2)
-        device = sparse_1.device
-
-        # Random Rotation
-        sparse_1_rot = torch.empty_like(sparse_1)
-        sparse_2_rot = torch.empty_like(sparse_2)
-
-        for i in range(sparse_1.shape[0]):
-            R = self.random_rotation_matrix().to(sparse_1.device)
-            sparse_1_rot[i] = torch.mm(sparse_1[i], R.T)
-
-        for i in range(sparse_2.shape[0]):
-            R = self.random_rotation_matrix().to(sparse_2.device)
-            sparse_2_rot[i] = torch.mm(sparse_2[i], R.T)
-
-        xyz1, xyz2, h1, h2 = self.siamese_forward(sparse_1_rot,sparse_2_rot)
-
-        # CLS Forward
-        h_cat = torch.cat([h1,h2],dim=0)
-        fp_filter = torch.where(torch.cat([id_1,id_2],dim=0) != -1)[0]
-        cls_preds, cls_loss = self.cls_forward(h_cat,torch.cat([label_1,label_2],dim=0),log_vars,device,prefix='')
-
-        # FP Forward
-        fp_preds, fp_loss = self.fp_forward(h_cat,torch.cat([label_1,label_2],dim=0),log_vars,device,prefix='')
-
-        # Match Forward
-        h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
-        match_preds, match_loss, (o1, o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
-
-        # KL Forward
-        kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')
-
-        # Triplet Forward
-        if self.use_o:
-            h1, h2 = self.get_pooled_feats(o1), self.get_pooled_feats(o2)
-        triplet_loss = self.get_triplet_loss(h1,h2,id_1,id_2,match,log_vars,device,prefix='')
-        
-        losses['reid_loss'] = match_loss + cls_loss + kl_loss + fp_loss + triplet_loss
-        return losses, log_vars
-    
-@FUSIONMODELS.register_module()
-class ReIDNet_MoE(BaseDetector):
-    def __init__(self,
-                 losses_to_use,alpha,
-                 backbone,numpoints,
-                 cls_head,match_head,shape_head,fp_head,downsample,
-                 cross_stage1,local_stage1,cross_stage2,local_stage2,
-                 triplet_margin,triplet_p,triplet_sample_num,
-                 output_feat_size,num_classes,use_o,eval_only=False,train_cfg=None,test_cfg=None,use_dgcnn=False):
-                 
-        super().__init__()
-
-        self.moe = MoE( dim = output_feat_size,
-                        num_experts = num_classes,               # increase the experts (# parameters) of your model without increasing computation
-                        hidden_dim = output_feat_size * 4,           # size of hidden dimension in each expert, defaults to 4 * dimension
-                        activation = nn.LeakyReLU,      # use your preferred activation, will default to GELU
-                        second_policy_train = 'random', # in top_2 gating, policy for whether to use a second-place expert
-                        second_policy_eval = 'random',  # all (always) | none (never) | threshold (if gate value > the given threshold) | random (if gate value > threshold * random_uniform(0, 1))
-                        second_threshold_train = 0.2,
-                        second_threshold_eval = 0.2,
-                        capacity_factor_train = 1.25,   # experts have fixed capacity per batch. we need some extra capacity in case gating is not perfectly balanced.
-                        capacity_factor_eval = 2.,      # capacity_factor_* should be set to a value >=1
-                        loss_coef = 1e-2                # multiplier on the auxiliary expert balancing auxiliary loss
-                        )
-    
-    def match_forward(self,h1,h2,xyz1,xyz2,match,log_vars,device,prefix=''):
-        o1, o2 = None, None
-        if self.losses_to_use['match']:
-            match_in, o1, o2 = self.xcorr_eff(h1,xyz1,h2,xyz2)
-            match_in, aux_loss = self.moe(match_in.permute(0,2,1))
-            match_in = match_in.permute(0,2,1)
-
-            match_in = self.get_pooled_feats(match_in)  
-            match_preds = self.match_head(match_in).squeeze(1)
-
-            match_loss = self.bce(match_preds,match)
-            match_loss = match_loss * self.alpha['match'] + aux_loss * 1.0
-
-            if self.compute_summary and log_vars != None:
-                log_vars[prefix+'match_loss'] = match_loss.item()
-                log_vars[prefix+'match_acc'] = (nn.Sigmoid()(match_preds) > 0.5).float().eq(match).float().mean().item()
-
-                gt_bins = torch.bincount(match.long())
-                log_vars[prefix+'num_preds_0'] = gt_bins[0].item()
-                log_vars[prefix+'num_preds_1'] = gt_bins[1].item() if len(gt_bins) > 1 else 0
-
-                pred_bins = torch.bincount((nn.Sigmoid()(match_preds) > 0.5).long())
-                log_vars[prefix+'num_gt_0'] = pred_bins[0].item()
-                log_vars[prefix+'num_gt_1'] = pred_bins[1].item() if len(pred_bins) > 1 else 0
-        else:
-            match_preds = None
-            match_loss = torch.tensor(0.,requires_grad=True,device=device)
-
-        return match_preds, match_loss, (o1, o2)

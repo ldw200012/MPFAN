@@ -24,7 +24,7 @@ git clone https://github.com/ldw200012/MPFAN.git
 cd MPFAN/
 git clone https://github.com/c7huang/lamtk
 ```
-## ENVIRONMENT SETUP
+## ENVIRONMENT SETUP (Docker)
 1. Pull docker image (the image is with CUDA-11.3)
 ```
 docker pull daldidan/mpfan:latest
@@ -63,6 +63,39 @@ CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 
 ```
 CUDA_VISIBLE_DEVICES={GPU-ID} MASTER_ADDR=localhost torchpack dist-run -v -np 1 python tools/train.py configs_reid/reid_{dataset_name}_pts/testing/testing_{model_name}.py --checkpoint weights/{checkpoint_name}.pth
 ```
+
+## Complexity Analysis Tools (Inference)
+The repository provides tools for performing comprehensive complexity analysis on the ReIDNet models for testing/inference.
+
+- A. Parameter Count: Model size in millions of parameters
+- B. FLOPs/MACs: Estimated computational complexity for a fixed input (1024 points)
+- C. Inference Latency: Runtime performance in milliseconds
+
+### Run All Analyses via Script
+Use the convenience script to run all analyses (parameter count, FLOPs/MACs estimation, and latency):
+```
+./tools/run_complexity_analysis.sh configs_reid/reid_nuscenes_pts/base_mpfan.py
+```
+Replace the config path with any supported configuration.
+
+### Run Individually
+- Parameter Count
+```
+python tools/count_params.py --config configs_reid/reid_nuscenes_pts/base_mpfan.py
+```
+- FLOPs/MACs (estimated)
+```
+python tools/flops_thop.py --config configs_reid/reid_nuscenes_pts/base_mpfan.py
+```
+- Inference Latency
+```
+python tools/latency.py --config configs_reid/reid_nuscenes_pts/base_mpfan.py
+```
+
+### Notes
+- The FLOPs/MACs are estimated based on model architecture and parameters for models with complex input structures.
+- Latency is measured with warmup iterations followed by measurement iterations. Use `--warmup` and `--iters` to control measurement fidelity.
+- Scripts assume CUDA is available but will fall back to CPU if not.
 
 ## ACKNOWLEDGEMENTS
 Out repository is based on <a href="https://github.com/bentherien/point-cloud-reid.git">point-cloud-reid</a>, <a href="https://github.com/open-mmlab/mmdetection3d.git">mmdetection3d</a>, and <a href="https://github.com/guochengqian/openpoints.git">openpoints</a>.

@@ -15,5 +15,4 @@ log_level = 'INFO'
 work_dir = None
 load_from = None
 # resume_from = None
-# resume_from = "runs/ablation/1by1/moe/ptr_siameseRoT_match_random/latest.pth"
 workflow = [('train', 1)]
