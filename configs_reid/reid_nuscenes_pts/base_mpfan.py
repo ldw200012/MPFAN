@@ -8,8 +8,8 @@ model = dict(
 
     # backbone=dict(type='ED_DualReID'),
     # backbone=dict(type='ED_DualReID_selective', fe_module='pointnet', ED_conv_out=16),
-    backbone=dict(type='ED_DualReID_selective', fe_module='pointnext', ED_conv_out=16),
-    # backbone=dict(type='ED_DualReID_selective', fe_module='dgcnn', ED_conv_out=16),
+    # backbone=dict(type='ED_DualReID_selective', fe_module='pointnext', ED_conv_out=16),
+    backbone=dict(type='ED_DualReID_selective', fe_module='dgcnn', ED_conv_out=16),
     # backbone=dict(type='ED_DualReID_selective', fe_module='deepgcn', ED_conv_out=16),
 
     # backbone=dict(type='PTr-PN', fe_module='pointnet'),

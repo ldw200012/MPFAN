@@ -147,9 +147,9 @@ class ED_DualReID(nn.Module):
         z = torch.cat((f_, eigen_feature.permute(0,2,1)), dim=1)
         z_ = F.relu(self.bn_final(self.conv_final(z)))
         
-        return xyz, z_, h1, h2_, eigen_feature.permute(0,2,1) # [B, N/2, 3], [B, 128, N/2]
+        # return xyz, z_, h1, h2_, eigen_feature.permute(0,2,1) # [B, N/2, 3], [B, 128, N/2]
         
-        # return xyz, z_ # [B, N/2, 3], [B, conv_out=64, N/2]
+        return xyz, z_ # [B, N/2, 3], [B, conv_out=64, N/2]
     
 class ED_DualReID_selective(nn.Module):
     def __init__(self, fe_module='pointnet', ED_nsample=10, ED_conv_out=4):
@@ -259,5 +259,5 @@ class ED_DualReID_selective(nn.Module):
         # h2_pca = pca.fit_transform(h2_.cpu())
         # h3_pca = pca.fit_transform(eigen_feature.cpu())
         
-        # return xyz, z_ # [B, N/2, 3], [B, 128, N/2]
-        return xyz, z_, h1, h2_, eigen_feature.permute(0,2,1) # [B, N/2, 3], [B, 128, N/2]
+        return xyz, z_ # [B, N/2, 3], [B, 128, N/2]
+        # return xyz, z_, h1, h2_, eigen_feature.permute(0,2,1) # [B, N/2, 3], [B, 128, N/2]

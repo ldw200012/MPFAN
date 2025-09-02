@@ -25,7 +25,7 @@ from tools.utils import setup_neptune_logger
 
 def main():
 
-    assert '/btherien/github/nuscenes-devkit/python-sdk' in os.environ['PYTHONPATH']
+    # assert '/btherien/github/nuscenes-devkit/python-sdk' in os.environ['PYTHONPATH']
     dist.init()
 
     parser = argparse.ArgumentParser()
