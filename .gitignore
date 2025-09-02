@@ -6,7 +6,9 @@ Datasets/
 lamtk/
 *.egg-info/
 runs/
+runs_backup/
 runs_analysis/
+weights/
 
 # C extensions
 *.so
