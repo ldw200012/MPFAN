@@ -42,15 +42,15 @@ echo
 # python3 tools/flops_thop.py --config "$CONFIG_FILE"
 # echo
 
-echo "3. Latency Analysis"
-echo "-------------------"
-python3 tools/latency.py --config "$CONFIG_FILE"
-echo
-
-# echo "4. Comprehensive Analysis"
-# echo "------------------------"
-# python3 tools/complexity_analysis.py --config "$CONFIG_FILE"
+# echo "3. Latency Analysis"
+# echo "-------------------"
+# python3 tools/latency.py --config "$CONFIG_FILE"
 # echo
+
+echo "[Comprehensive Analysis]"
+echo "------------------------"
+python3 tools/complexity_analysis.py --config "$CONFIG_FILE"
+echo
 
 echo "Analysis complete!"
 echo "Check the output above for detailed results."

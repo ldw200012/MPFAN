@@ -32,7 +32,7 @@ def measure_latency(model, inputs, warmup=20, iters=100):
     with torch.no_grad():
         # Warmup
         for _ in range(warmup):
-            _ = model(**inputs)
+            _ = model(**inputs, return_loss=False)
         
         # Synchronize GPU if available
         if torch.cuda.is_available():
@@ -41,7 +41,7 @@ def measure_latency(model, inputs, warmup=20, iters=100):
         # Measure latency
         t0 = time.time()
         for _ in range(iters):
-            _ = model(**inputs)
+            _ = model(**inputs, return_loss=False)
         
         if torch.cuda.is_available():
             torch.cuda.synchronize()
