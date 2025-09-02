@@ -25,8 +25,8 @@ model = dict(
     num_classes=num_classes,
     use_dgcnn=True,
 
-    # backbone=dict(type='PointNet'),
-    backbone=dict(type='PointNet_6C'),
+    backbone=dict(type='PointNet'),
+    # backbone=dict(type='PointNet_6C'),
     # backbone=dict(type='ED_PointNet', ED_conv_out=16),
 
     cls_head=[dict(type='LinearRes', n_in=hidden_size, n_out=hidden_size, norm='GN',ng=ng),

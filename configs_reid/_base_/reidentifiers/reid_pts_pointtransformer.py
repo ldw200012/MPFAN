@@ -21,8 +21,8 @@ model = dict(
     num_classes=num_classes,
     use_dgcnn=False,
 
-    # backbone=dict(type='PointTransformerBackbone', input_channels=0, conv_out=output_feat_size, nsample=[16,16,16]),
-    backbone=dict(type='PointTransformerBackbone_6C', input_channels=0, conv_out=output_feat_size, nsample=[16,16,16]),
+    backbone=dict(type='PointTransformerBackbone', input_channels=0, conv_out=output_feat_size, nsample=[16,16,16]),
+    # backbone=dict(type='PointTransformerBackbone_6C', input_channels=0, conv_out=output_feat_size, nsample=[16,16,16]),
     # backbone=dict(type='ED_PointTransformerBackbone', input_channels=0, conv_out=output_feat_size, nsample=[16,16,16], ED_conv_out=4),
 
     match_head=[dict(type='LinearRes', n_in=hidden_size_match, n_out=hidden_size_match, norm='GN',ng=8),

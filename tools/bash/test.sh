@@ -29,6 +29,6 @@ MASTER_ADDR=localhost \
 torchpack dist-run -v -np 1 \
   python tools/train.py \
   "configs_reid/${DATA_NAME}/testing/testing_${MODEL_NAME}.py" \
-  --checkpoint "weights/${CKPT_NAME}.pth"
+  --checkpoint "runs/${CKPT_NAME}.pth"
 
 # ./test_reid.sh 0 pointnet epoch_120 reid_nuscenes_pts
