@@ -1,15 +1,15 @@
-# <p align="center">MPFAN</p>
+# <p align="center">CALM-Net</p>
 
-<b>M</b>ulti-<b>P</b>erspective <b>F</b>eature <b>A</b>ggregation <b>N</b>etwork <b>(MPFAN)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
+<b>C</b>urvature-<b>A</b>ware <b>L</b>iDAR point cloud-based <b>M</b>ulti-branch <b>N</b>etwork <b>(CALM-Net)</b> is a LiDAR point cloud-based 3D object re-identification model, powered by the aggregation of multiple feature vectors extracted using various sub-network structures.
 
 ## 🚀 BUILD REPOSITORY
-1. Clone the MPFAN git repository (Main Workspace)
+1. Clone the CALM-Net git repository (Main Workspace)
 ```
-git clone https://github.com/ldw200012/MPFAN.git
+git clone https://github.com/ldw200012/CALM-Net.git
 ```
 2. Clone LAMTK git repository (Lamtk Library)
 ```
-cd MPFAN/
+cd CALM-Net/
 git clone https://github.com/c7huang/lamtk
 ```
 
@@ -32,7 +32,7 @@ pip install -e .
 ```
 
 ## 📥 GET PRETRAINED WEIGHTS
-We provide you the pretrained weights for the following models: PointNet, PointNeXt, DGCNN, DeepGCN, Point Transformer, SPoTr, MPFAN.
+We provide you the pretrained weights for the following models: PointNet, PointNeXt, DGCNN, DeepGCN, Point Transformer, CALM-Net.
 
 | Model          | Trained Epoch | # Params | Download  |
 | -------------- | ------------- | -------- | --------- |
@@ -40,8 +40,7 @@ We provide you the pretrained weights for the following models: PointNet, PointN
 | DGCNN          | 500           | -        | [LINK](#) |
 | DeepGCN        | 500           | -        | [LINK](#) |
 | Point Transformer | 500        | -        | [LINK](#) |
-| SPoTr          | 500           | -        | [LINK](#) |
-| MPFAN          | 500           | -        | [LINK](https://drive.usercontent.google.com/download?id=1pGCarCGP6N-qt4nYr8WU7YqgYSuvEJUT) |
+| CALM-Net          | 500           | -        | [LINK](https://drive.usercontent.google.com/download?id=1pGCarCGP6N-qt4nYr8WU7YqgYSuvEJUT) |
 
 ## 🎯 TRAIN
 ```
