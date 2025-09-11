@@ -70,7 +70,7 @@ val_metadata_version = 'trainval-det-both'
 resume_from = None
 
 #################### CUSTOMIZE HERE ####################
-load_dims = [6]       # [3] / [6]
+load_dims = [3]       # [3] / [6]
 eigen_knn_size = 10
 load_feats = ['xyz_eigen'] if load_dims[0] == 6 else ['xyz']
 #################### CUSTOMIZE HERE ####################

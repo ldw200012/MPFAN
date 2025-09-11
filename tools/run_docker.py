@@ -1,7 +1,7 @@
 import os 
 
 path_to_reid_ws = '/home/dongwooklee1201/morin/Research/Masters_Dissertation/LiDAR_Re-Identification/MPFAN'
-path_to_data = '/media/dongwooklee1201/Data_Storage_A1/Datasets'
+path_to_data = '/media/dongwooklee1201/Data_Storage_A2/Datasets'
 memory = '724g'
 cpus = 10
 gpus = 'all'

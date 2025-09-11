@@ -184,26 +184,58 @@ class ReIDNet(BaseDetector):
         return out, o1, o2
 
     def preprocess_inputs(self, sparse_1,sparse_2,label_1,label_2,id_1,id_2):
-        sparse_1 = torch.stack(sparse_1,dim=0)
-        sparse_2 = torch.stack(sparse_2,dim=0)
-        label_1 = torch.cat(label_1,dim=0)
-        label_2 = torch.cat(label_2,dim=0)
-        id_1 = torch.cat(id_1,dim=0)
-        id_2 = torch.cat(id_2,dim=0)
+        def _stack_or_batch_points(x):
+            # Accept list/tuple[T] or tensor. Output [B, N, C]
+            if isinstance(x, (list, tuple)):
+                # assume elements are [N, C]
+                return torch.stack(x, dim=0)
+            # tensor
+            if x.ndim == 2:
+                return x.unsqueeze(0)
+            return x
+
+        def _cat_or_batch_1d(x):
+            # Accept list/tuple[T] or tensor. Output [B]
+            if isinstance(x, (list, tuple)):
+                return torch.cat(x, dim=0)
+            if x.ndim == 0:
+                return x.unsqueeze(0)
+            return x
+
+        sparse_1 = _stack_or_batch_points(sparse_1)
+        sparse_2 = _stack_or_batch_points(sparse_2)
+        label_1 = _cat_or_batch_1d(label_1)
+        label_2 = _cat_or_batch_1d(label_2)
+        id_1 = _cat_or_batch_1d(id_1)
+        id_2 = _cat_or_batch_1d(id_2)
 
         return sparse_1,sparse_2,label_1,label_2,id_1,id_2
 
     def preprocess_inputs_size_vis(self, sparse_1,sparse_2,label_1,label_2,id_1,id_2,size_1,size_2,vis_1,vis_2):
-        sparse_1 = torch.stack(sparse_1,dim=0)
-        sparse_2 = torch.stack(sparse_2,dim=0)
-        label_1 = torch.cat(label_1,dim=0)
-        label_2 = torch.cat(label_2,dim=0)
-        id_1 = torch.cat(id_1,dim=0)
-        id_2 = torch.cat(id_2,dim=0)
-        size_1 = torch.cat(size_1,dim=0)
-        size_2 = torch.cat(size_2,dim=0)
-        vis_1 = torch.cat(vis_1,dim=0)
-        vis_2 = torch.cat(vis_2,dim=0)
+        def _stack_or_batch_points(x):
+            if isinstance(x, (list, tuple)):
+                return torch.stack(x, dim=0)
+            if x.ndim == 2:
+                return x.unsqueeze(0)
+            return x
+
+        def _cat_or_batch_1d(x):
+            if isinstance(x, (list, tuple)):
+                return torch.cat(x, dim=0)
+            if x.ndim == 0:
+                return x.unsqueeze(0)
+            return x
+
+        sparse_1 = _stack_or_batch_points(sparse_1)
+        sparse_2 = _stack_or_batch_points(sparse_2)
+        label_1 = _cat_or_batch_1d(label_1)
+        label_2 = _cat_or_batch_1d(label_2)
+        id_1 = _cat_or_batch_1d(id_1)
+        id_2 = _cat_or_batch_1d(id_2)
+        size_1 = _cat_or_batch_1d(size_1)
+        size_2 = _cat_or_batch_1d(size_2)
+        vis_1 = _cat_or_batch_1d(vis_1)
+        vis_2 = _cat_or_batch_1d(vis_2)
         
         return sparse_1,sparse_2,label_1,label_2,id_1,id_2,size_1,size_2,vis_1,vis_2
 
@@ -403,8 +435,6 @@ class ReIDNet(BaseDetector):
         return losses, log_vars
 
     def forward_test(self,sparse_1,sparse_2,label_1,label_2,id_1,id_2,size_1,size_2,vis_1,vis_2,*args,**kwargs):
-        feat_validation = False
-
         results = {}
         log_vars = None
 
@@ -429,77 +459,6 @@ class ReIDNet(BaseDetector):
         h1, h2, xyz1, xyz2, match = self.get_match_supervision(h1,h2,xyz1,xyz2,id_1,id_2)
         match_preds, match_loss, (o1,o2) = self.match_forward(h1,h2,xyz1,xyz2,match,log_vars,device,prefix='')
 
-        
-        if feat_validation:
-            ############
-            # w1: save features by model & class
-            # w2: save features by model (whole class as one)
-            # w3: 
-            # 0: car, 1: truck, 3: bus, 4: trailer, 6: motorcycle, 8: pedestrian, -1: unlabeled
-
-            work = ["w1", "w2"]
-            pca = PCA(n_components=3)
-            model_name = "spotr"
-            # class_to_extract = [0,1,3,4,6,8,-1]
-            class_to_extract = [4]
-
-            #################################################################################################################################################
-            # Save Point Features by Model & Class
-            #################################################################################################################################################
-
-            for idx, match_pred in enumerate(match_preds):
-                if int(label_1[idx]) in class_to_extract: # If [instance A] class in 'class_to_extract'
-                    fa_T = h1[idx].T
-                    fa_pca = pca.fit_transform(fa_T.cpu())
-
-                    if "w1" in work:
-                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_1[idx]))
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("A [Class: {}] [ID: {}] - {} / {}".format(int(label_1[idx]), int(id_1[idx]), loaded_stacked_feats.shape, fa_pca.shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_{}".format(int(label_1[idx])))
-                            np.save(file_path, fa_pca)
-                    
-                    if "w2" in work:
-                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, fa_pca, axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_whole")
-                            np.save(file_path, fa_pca)
-
-                if int(label_2[idx]) in class_to_extract: # If [instance B] class in 'class_to_extract'
-                    fb_T = h2[idx].T
-                    fb_pca = pca.fit_transform(fb_T.cpu())
-
-                    if "w1" in work:
-                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_{}.npy".format(model_name, int(label_2[idx]))
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("B [Class: {}] [ID: {}] - {} / {}".format(int(label_2[idx]), int(id_2[idx]), loaded_stacked_feats.shape, fb_pca.shape))
-                            updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_{}".format(int(label_1[idx])))
-                            np.save(file_path, fb_pca)
-                    
-                    if "w2" in work:
-                        file_path = "./runs_feats/PCAFEAT_online/PCAFEAT_{}_whole.npy".format(model_name)
-                        if os.path.exists(file_path):
-                            loaded_stacked_feats = np.load(file_path)
-                            print("Stacking to whole")
-                            updated_stacked_feats = np.append(loaded_stacked_feats, fb_pca, axis=0)
-                            np.save(file_path, updated_stacked_feats)
-                        else:
-                            print("New Instance Feature_whole")
-                            np.save(file_path, fa_pca)
-        
         # KL Forward
         kl_loss = self.get_kl_loss(h1,h2,match,log_vars,device,prefix='')
 
